@@ -49,11 +49,3 @@ class Net():
     def Set_Mass_Balance(self):
         print('oi')
 
-
-        
-    
-
-
-        
-def teste():
-    return v2
