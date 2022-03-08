@@ -55,3 +55,5 @@ class Net():
 
 
         
+def teste():
+    return v2
