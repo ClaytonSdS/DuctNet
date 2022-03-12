@@ -44,13 +44,21 @@ class Net():
         self.dflink = pd.read_csv(flink, sep='\t', index_col='idx')
         self.connect = pd.read_csv(fconnect, sep='\t', index_col='lk')
         self.DictLink()
-
-        #self.Set_Connection()
+        self.Set_Boundary_Variable_Nodes()
 
         self.mass_balance = {}
         self.matrix_a = {}
         self.matrix_b = {}
         self.result = {}
+
+        # COLOCAR OS NOS ASSOCIADOS AS LIGACOES
+        self.nodes_in_links = {self.connect.index[node]:  list(self.connect.loc[self.connect.index[node]]) for node in range(len(self.connect.index))}
+
+        # COLOCAR AS LIGACOES ASSOCIADAS AOS NÓS VARIAVEIS
+        self.links_in_nodes = {self.node_variable[node]: self.Set_from_to(self.node_variable[node]) for node  in range(len(self.node_variable))}
+
+        # ATIVAR FUNÇÃO PARA ENCONTRAR OS VIZINHOS DOS NÓS VARIAVEIS
+        self.Set_Neighbors()
 
     def DictLink(self):
         self.link = {ID: Link(self.dflink.loc[ID, 'm'],
@@ -61,18 +69,28 @@ class Net():
                               self.dflink.loc[ID, 'zeta'])
                      for ID in self.dflink.index}
 
-    def Set_Connection(self):
-        pass
-        #self.node_variable = list(set(self.from_).intersection(self.to_))
-        #self.node_boundary = list(set(self.from_).symmetric_difference(set(self.to_)))
+    def Set_from_to(self, no):
+        saindo = self.connect.loc[self.connect['from']==no].index
+        entrando = self.connect.loc[self.connect['to']==no].index
+        total = list(saindo) + list(entrando)
+        return total
 
-        #self.nodes = list(self.node_variable + self.node_boundary)
-        #self.nodes.sort()
+    def Set_Boundary_Variable_Nodes(self):
+        self.node_variable = list(set(self.connect['from'].values).intersection(self.connect['to'].values))
+        self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
 
-        # checar
-        #self.nodes_links = {self.nodes[i]: [] for i in range(0, len(self.nodes))}
-        #self.links_nodes = {f"L_{self.link[i]}": [self.from_[i], self.to_[i]] for i in range(len(self.link))}
-        #self.nodes_near = {}
+    def find_different_node(self, lista, no):
+        for x in range(len(lista)):
+            if lista[x] != no:
+                return lista[x]
+
+    def Set_Neighbors(self):
+        self.nodes_neighbors = {}
+        for no in range(len(self.node_variable)):
+            self.nodes_neighbors[self.node_variable[no]] = []
+            for link in range(len(self.links_in_nodes[self.node_variable[no]])):
+                self.nodes_neighbors[self.node_variable[no]].append(self.find_different_node(self.nodes_in_links[self.links_in_nodes[self.node_variable[no]][link]], self.node_variable[no]))
+
 
     # m_line = {0: a0(p0) - a0(p1); 1: a1(p1) - a1(p2); 2: a2(p2 + p5) - a2(p3); 3: a3(p3) - a3(p4); 5:a5(p5) - a5(p2)
     # {2: (a1 + a5) - a3}
