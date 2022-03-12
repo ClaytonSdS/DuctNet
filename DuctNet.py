@@ -48,6 +48,7 @@ class Net():
         self.mass_balance = {}
         self.matrix_a = {}
         self.matrix_b = {}
+        self.result = {}
 
         for node in range(len(self.nodes)):
             self.find_links_nodes(self.nodes[node])
@@ -58,8 +59,15 @@ class Net():
             self.Set_Mass_Balance_Equations(self.node_variable[y])
 
         for z in range(len(self.node_variable)):
-            self.matrix_a[self.node_variable[z]] = self.find_equation_by_node(self.node_variable[z])
-            self.matrix_b[self.node_variable[z]] = self.find_equation_by_node_B(self.node_variable[z])
+            self.matrix_a[self.node_variable[z]] = self.Set_Matrix_A_Coefs(self.node_variable[z])
+            self.matrix_b[self.node_variable[z]] = self.Set_Matrix_B_Coefs(self.node_variable[z])
+
+        self.A = np.array(list(self.matrix_a.values()))
+        self.B = np.array(list(self.matrix_b.values()))
+        self.C = np.linalg.solve(self.A,self.B)
+
+        for j in range(len(self.node_variable)):
+            self.result[self.node_variable[j]] = self.C[j]
 
     def Set_Connection(self):
         self.connection = pd.DataFrame({"link":self.link,"from":self.from_, "to":self.to_})
@@ -78,9 +86,10 @@ class Net():
                 self.nodes_links[node_to_search].append(f"L_{self.link[x]}")
 
     def Set_Mass_Balance_Equations(self, node):
-        self.mass_balance[node] = {node: [f"a_{self.nodes_links[node][i].split('_')[-1]}" for i in range(len(self.nodes_links[node]))]}
+        self.mass_balance[node] = {node: [- self.ligacoes[int(self.nodes_links[node][i].split('_')[-1])].a for i in range(len(self.nodes_links[node]))]}
+        self.mass_balance[node][node] = sum(self.mass_balance[node][node])
         for x in range(len(self.nodes_near[node])):
-            self.mass_balance[node][self.nodes_near[node][x]] = f"a_{self.nodes_links[node][x].split('_')[-1]}"
+            self.mass_balance[node][self.nodes_near[node][x]] = self.ligacoes[int(self.nodes_links[node][x].split('_')[-1])].a
 
     def Set_Nodes_Neighbors(self):
         self.neighbors_by_link = {}
@@ -100,7 +109,7 @@ class Net():
                     if self.neighbors_by_link[self.node_variable[x]][i][z] != self.node_variable[x]:
                         self.nodes_near[self.node_variable[x]].append(self.neighbors_by_link[self.node_variable[x]][i][z])
 
-    def find_equation_by_node(self,no):
+    def Set_Matrix_A_Coefs(self,no):
         encontrados = []
         for x in range(len(self.node_variable)):
             if no in self.mass_balance[self.node_variable[x]].keys():
@@ -109,17 +118,15 @@ class Net():
                 encontrados.append(0)
         return encontrados
 
-    def find_equation_by_node_B(self, no):
+    def Set_Matrix_B_Coefs(self, no):
         encontrados = []
         nos_boundary = self.node_boundary
         nos = list(self.mass_balance[no].keys())
         for x in range(len(nos)):
             if nos[x] in nos_boundary:
-                encontrados.append(self.mass_balance[no][nos[x]] + f'p{nos[x]}')
-
+                encontrados.append(self.mass_balance[no][nos[x]] * self.nos[int(nos[x])].p)
         if len(encontrados) == 0:
             encontrados = [0]
-
         return encontrados
 
     # m_line = {0: a0(p0) - a0(p1); 1: a1(p1) - a1(p2); 2: a2(p2 + p5) - a2(p3); 3: a3(p3) - a3(p4); 5:a5(p5) - a5(p2)

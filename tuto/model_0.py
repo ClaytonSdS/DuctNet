@@ -28,8 +28,8 @@ no = {0: dn.Node(5000),
       1: dn.Node(3400),
       2: dn.Node(3150),
       3: dn.Node(2170),
-      4: dn.Node(10),
-      5: dn.Node(10)}
+      4: dn.Node(10)}
+
 
 # caso 1 - #######################################################
 net = dn.Net(connectivy= np.array([[0,1,2,3,5],
@@ -42,7 +42,9 @@ net = dn.Net(connectivy= np.array([[0,1,2,3,4,5,6,7,8,9],
 #caso 3 serie - ##################################################
 net = dn.Net(connectivy= np.array([[0,1,2,3],
                                    [0,1,2,3],
-                                   [1,2,3,4]]))
+                                   [1,2,3,4]]), ligacoes=lk, nos=no)
+
+
 
 def fun(x):
     x.Set_Dynamic()
