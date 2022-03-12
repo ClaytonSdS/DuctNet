@@ -11,7 +11,8 @@ from scipy.optimize import minimize_scalar as minimize_scalar
 from scipy.optimize import minimize as minimize
 from scipy.optimize import bisect as bisect
 
-#from UnitConv import UnitConv as uc
+
+# from UnitConv import UnitConv as uc
 class Link():
     def __init__(self, m, A_r, A_i, A_o, rho, zeta):
         self.m = m
@@ -21,16 +22,16 @@ class Link():
         self.rho = rho
         self.zeta = zeta
         self.Set_a()
-        
+
     def Set_Dynamic(self):
-        self.U = self.m/(self.A_r * self.rho)
-        self.p_d = self.rho*self.U**2/2
+        self.U = self.m / (self.A_r * self.rho)
+        self.p_d = self.rho * self.U ** 2 / 2
         self.DP = self.zeta * self.p_d
 
     def Set_a(self):
-        self.a = 1/((self.m/(2*self.rho)) * (self.zeta/self.A_r**2 + 1/self.A_o**2 - 1/self.A_i**2))
-   
-        
+        self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + 1 / self.A_o ** 2 - 1 / self.A_i ** 2))
+
+
 class Node():
     def __init__(self, p):
         self.p = p
@@ -45,11 +46,13 @@ class Net():
         self.from_ = connectivity[1]
         self.to_ = connectivity[2]
         self.Set_Connection()
+
         self.mass_balance = {}
         self.matrix_a = {}
         self.matrix_b = {}
         self.result = {}
 
+        # checar
         for node in range(len(self.nodes)):
             self.find_links_nodes(self.nodes[node])
 
@@ -64,18 +67,22 @@ class Net():
 
         self.A = np.array(list(self.matrix_a.values()))
         self.B = np.array(list(self.matrix_b.values()))
-        self.C = np.linalg.solve(self.A,self.B)
+        self.C = np.linalg.solve(self.A, self.B)
 
         for j in range(len(self.node_variable)):
             self.result[self.node_variable[j]] = self.C[j]
 
     def Set_Connection(self):
-        self.connection = pd.DataFrame({"link":self.link,"from":self.from_, "to":self.to_})
-        #self.matrix_A_shape = len(list(set(from_).intersection(self.to_)))
+        self.connection = pd.DataFrame({"link": self.link, "from": self.from_, "to": self.to_})
+
+
         self.node_variable = list(set(self.from_).intersection(self.to_))
         self.node_boundary = list(set(self.from_).symmetric_difference(set(self.to_)))
+
         self.nodes = list(self.node_variable + self.node_boundary)
         self.nodes.sort()
+
+        # checar
         self.nodes_links = {self.nodes[i]: [] for i in range(0, len(self.nodes))}
         self.links_nodes = {f"L_{self.link[i]}": [self.from_[i], self.to_[i]] for i in range(len(self.link))}
         self.nodes_near = {}
@@ -86,10 +93,12 @@ class Net():
                 self.nodes_links[node_to_search].append(f"L_{self.link[x]}")
 
     def Set_Mass_Balance_Equations(self, node):
-        self.mass_balance[node] = {node: [- self.ligacoes[int(self.nodes_links[node][i].split('_')[-1])].a for i in range(len(self.nodes_links[node]))]}
+        self.mass_balance[node] = {node: [- self.ligacoes[int(self.nodes_links[node][i].split('_')[-1])].a for i in
+                                          range(len(self.nodes_links[node]))]}
         self.mass_balance[node][node] = sum(self.mass_balance[node][node])
         for x in range(len(self.nodes_near[node])):
-            self.mass_balance[node][self.nodes_near[node][x]] = self.ligacoes[int(self.nodes_links[node][x].split('_')[-1])].a
+            self.mass_balance[node][self.nodes_near[node][x]] = self.ligacoes[
+                int(self.nodes_links[node][x].split('_')[-1])].a
 
     def Set_Nodes_Neighbors(self):
         self.neighbors_by_link = {}
@@ -101,15 +110,17 @@ class Net():
                 self.neighbors_by_link[self.node_variable[x]].append(self.nodes_links[self.node_variable[x]][j])
         for x in range(len(self.node_variable)):
             for i in range(len(self.neighbors_by_link[self.node_variable[x]])):
-                self.neighbors_by_link[self.node_variable[x]][i] = self.links_nodes[self.neighbors_by_link[self.node_variable[x]][i]]
+                self.neighbors_by_link[self.node_variable[x]][i] = self.links_nodes[
+                    self.neighbors_by_link[self.node_variable[x]][i]]
         for x in range(len(self.node_variable)):
             self.nodes_near[self.node_variable[x]] = []
             for i in range(len(self.neighbors_by_link[self.node_variable[x]])):
                 for z in range(len(self.neighbors_by_link[self.node_variable[x]][i])):
                     if self.neighbors_by_link[self.node_variable[x]][i][z] != self.node_variable[x]:
-                        self.nodes_near[self.node_variable[x]].append(self.neighbors_by_link[self.node_variable[x]][i][z])
+                        self.nodes_near[self.node_variable[x]].append(
+                            self.neighbors_by_link[self.node_variable[x]][i][z])
 
-    def Set_Matrix_A_Coefs(self,no):
+    def Set_Matrix_A_Coefs(self, no):
         encontrados = []
         for x in range(len(self.node_variable)):
             if no in self.mass_balance[self.node_variable[x]].keys():
