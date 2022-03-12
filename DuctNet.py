@@ -140,6 +140,9 @@ class Net():
             encontrados = [0]
         return encontrados
 
+
+    def printer(self):
+        print(222)
     # m_line = {0: a0(p0) - a0(p1); 1: a1(p1) - a1(p2); 2: a2(p2 + p5) - a2(p3); 3: a3(p3) - a3(p4); 5:a5(p5) - a5(p2)
     # {2: (a1 + a5) - a3}
     # preciso saber o que entra e o que sai do nó
