@@ -4,6 +4,7 @@ An pipe network simulator based on SIMPLE Method, that applies nodes and links t
 # Assumptions
 * Incompressible Fluid
 * No Heat Transfer
+* No Field Forces
 * Mass Balance in Nodes Equals Zero
 
 # Devices Prefix
