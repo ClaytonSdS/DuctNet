@@ -33,185 +33,7 @@ class Link():
     def Set_a(self):
         self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + 1 / self.A_o ** 2 - 1 / self.A_i ** 2))
 
-    class Tubo(Link):
-        def __init__(self, m, A_r, A_i, A_o, rho, zeta, l):
-            Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
-            self.mu =  1.12e-3
-            self.l = l
-            self.D = np.sqrt((4 * self.A_r) / np.pi)
-            self.U = self.m / (self.A_r * self.rho)
-            self.nu = self.mu / self.rho
-            self.df = pd.read_excel(
-                r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\tubo_chartB.xlsx',
-                engine='openpyxl').set_index('Reynolds')
-            self.Set_Zeta()
 
-        def lambda_(self, Re):
-            interp = interp1d(self.df.index, self.df['lambda'].values)
-            if Re <= 2000:
-                return 64 / Re
-            if (Re > 2000 and Re <= 4000):
-                return float(interp(Re))
-            if (Re > 4000 and Re < 100000):
-                return 0.3164 / (Re ** 0.25)
-            if Re >= 100000:
-                return 1 / ((1.8 * np.log10(Re) - 1.64) ** 2)
-
-        def Set_Zeta(self):
-            Re = round(self.U * self.D / self.nu)
-            lambdaValue = float(self.lambda_(Re))
-            self.zeta = lambdaValue * (self.l / self.D)
-
-    class Difusor(Link):
-        def __init__(self, m, A_r, A_i, A_o, rho, zeta, angle, l, UniformVelocityProfile=True):
-            Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
-            self.mu =  1.12e-3
-            self.UniformVelocityProfile = UniformVelocityProfile
-            self.angle = angle
-            self.l = l
-            self.Nair = self.A_o/ self.A_i
-            self.D = np.sqrt((4 * self.A_r) / np.pi)
-            self.U = self.m / (self.A_r * self.rho)
-            self.nu = self.mu / self.rho
-            self.Re = abs(round(self.U * self.D / self.nu))
-            self.df_z = {2: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_zetad_Nair2.xlsx',skiprows=1, engine='openpyxl').set_index('ang'),  #
-                    4: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_zetad_Nair4.xlsx',skiprows=1, engine='openpyxl').set_index('ang'),  #
-                    6: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_zetad_Nair6.xlsx',skiprows=1, engine='openpyxl').set_index('ang'),  #
-                    10: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_zetad_Nair10.xlsx',skiprows=1, engine='openpyxl').set_index('ang'),  #
-                    16: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_zetad_Nair16.xlsx',skiprows=1, engine='openpyxl').set_index('ang')}
-            self.interpz = {i: interp2d(self.df_z[i].index, self.df_z[i].columns, np.array(self.df_z[i]).T) for i in [2, 4, 6, 10, 16]}
-            self.df_kd1 = {50000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re50000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      100000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re100000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      300000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re300000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      400000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re300000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      2000000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re2000000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      5000000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re2000000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      6000000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re6000000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      8000000000000000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re6000000.xlsx',skiprows=2, engine='openpyxl').set_index('ang')}
-
-            self.df_kd2 = {50000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re50000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      100000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re100000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      300000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re300000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      400000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re300000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      2000000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re2000000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      5000000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re2000000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      6000000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re6000000.xlsx',skiprows=2, engine='openpyxl').set_index('ang'),  #
-                      8000000000000000: pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re6000000.xlsx',skiprows=2, engine='openpyxl').set_index('ang')}
-            self.interpKd1 = {i: interp2d(self.df_kd1[i].index, self.df_kd1[i].columns, np.array(self.df_kd1[i]).T) for i in
-                         [50000, 100000, 300000, 400000, 2000000, 5000000, 6000000, 8000000000000000]}
-            self.interpKd2 = {i: interp2d(self.df_kd2[i].index, self.df_kd2[i].columns, np.array(self.df_kd2[i]).T) for i in
-                         [50000, 100000, 300000, 400000, 2000000, 5000000, 6000000, 8000000000000000]}
-            self.Set_Zeta()
-
-        def Zetad(self, alpha, nair, Re):
-            nair_values = [2, 4, 6, 10, 16]
-            zetad_lista = []
-            for i in range(len(nair_values)):
-                zetad_lista = zetad_lista + [float(self.interpz[nair_values[i]](alpha, Re))]
-            zetad_interp = interp1d(nair_values, zetad_lista)
-            return float(zetad_interp(nair))
-
-        def Kd(self, alpha, nair, Re, l_0, D_0):
-            Re_values = [50000, 100000, 300000, 400000, 2000000, 5000000, 6000000, 8000000000000000]
-            nair_values = [2, 4, 16]
-            values_n2 = []
-            values_n4 = []
-            Kd_values = []
-            for i in range(len(Re_values)):
-                values_n2 = values_n2 + [float(self.interpKd1[Re_values[i]](alpha, l_0 / D_0))]
-                values_n4 = values_n4 + [float(self.interpKd2[Re_values[i]](alpha, l_0 / D_0))]
-            for x in range(len(nair_values)):
-                Kd_values = Kd_values + [float(interpReynolds[nair_values[x]](Re))]
-            interpNair = interp1d(nair_values, Kd_values)
-
-            return float(interpNair(nair))
-
-        def Set_Zeta(self):
-            self.zeta_d = self.Zetad(alpha=self.angle, nair=self.Nair, Re=self.Re)
-            if self.UniformVelocityProfile == True:
-                self.zeta = self.zeta_d
-            else:
-                self.k_d = self.Kd(alpha=self.angle, nair=self.Nair, Re=self.Re, l_0=self.l, D_0=self.D)
-                self.zeta = self.zeta_d * self.k_d
-
-    class Conexao_T(Link):
-        def __init__(self, m, A_r, A_i, A_o, rho):
-            Link.__init__(self, m, A_r, A_i, A_o, rho, zeta, Merging, Zeta_cs, Partition)
-            self.mu =  1.12e-3
-            self.Merging = Merging
-            self.Zeta_cs = Zeta_cs
-            self.Partition = Partition
-            self.D = np.sqrt((4 * self.A_r) / np.pi)
-            self.U = self.m / (self.A_r * self.rho)
-            self.nu = self.mu / self.rho
-
-            self.df_graphA_1 = pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\conexao_t_zetaLinha1_cs.xlsx',skiprows=2, engine='openpyxl').set_index('Qs/Qc')
-            self.interp_graphA_1 = interp2d(self.df_graphA_1.index, self.df_graphA_1.columns, np.array(self.df_graphA_1).T)
-
-            self.df_graphA_2 = pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\conexao_t_zeta1_cs.xlsx',skiprows=2, engine='openpyxl').set_index('Qs/Qc')
-            self.interp_graphA_2 = interp1d(self.df_graphA_2.index, self.df_graphA_2[1])
-
-            self.df_K1 = pd.read_excel(r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\conexao_t_df_k1.xlsx',skiprows=1, engine='openpyxl').set_index('Qs/Qc')
-            self.interp_k1 = interp1d(self.df_K1.index, self.df_K1[90])
-
-            if self.Merging == True:
-                self.A_s = self.A_i
-                self.A_c = self.A_o
-            if self.Merging == False:
-                self.A_s = self.A_o
-                self.A_c = self.A_i
-
-            self.U_s = self.m / (self.A_s * self.rho)
-            self.U_c = self.m / (self.A_c * self.rho)
-            self.Qs = self.A_s * self.U_s
-            self.Qc = self.A_c * self.U_c
-
-            self.A = A(Fs, Fc, Qs, Qc)
-            self.k_1 = k1(Fs, Fc, Qs, Qc)
-            self.Merging_func2 = self.A * (1 + (Fc / Fs) ** 2 + 3 * (Fc / Fs) ** 2 * ((Qs / Qc) ** 2 - Qs / Qc))
-            self.Dividing_func1 = 1 + k1_value * (w_s / w_c) ** 2
-
-            self.Set_Zeta()
-
-        def k1_parameter(self, Fs, Fc, Qs, Qc):
-            if Fs / Fc <= 1:
-                return float(interp_k1(Qs / Qc))
-            if Fs / Fc > 1:
-                if Qs / Qc <= 0.4:
-                    return 0.9
-                if Qs / Qc > 0.4:
-                    return 0
-
-        def A_parameter(self,Fs, Fc, Qs, Qc):
-            if Fs / Fc <= 0.35 and Qs / Qc <= 1:
-                return 1.0
-            if Fs / Fc > 0.35 and Qs / Qc <= 0.4:
-                return 0.9 * (1 - Qs / Qc)
-            if Fs / Fc > 0.35 and Qs / Qc > 0.4:
-                return 0.55
-
-        def ConvertZeta_cs(self, Fs, Fc, Qs, Qc, Zeta_cs):
-            return Zeta_cs / ((Qs * Fc) / (Qc * Fs)) ** 2
-
-        def Set_Zeta(self):
-            def Verificador(Fs, Fc):
-                if Fs / Fc == 1:
-                    Merging_func1 = float(self.interp_graphA_2(Qs / Qc))
-                    return Merging_func1
-                else:
-                    print('Nao existe dados de Juncao com Particaoo para Fs/Fc = {}'.format(Fs / Fc))
-
-            if self.Merging:
-                WithPartition_Zeta_cs = lambda Zeta_cs: self.Verificador(self.A_s, self.A_c) if str(self.Zeta_cs) == 'Yes' else self.ConvertZeta_cs(self.A_s, self.A_c, self.Qs, self.Qc, Zeta_cs=self.Verificador(self.A_s, self.A_c))
-                WithoutPartition_Zeta_cs = lambda Zeta_cs: self.Merging_func2 if str(self.Zeta_cs) == 'Yes' else self.ConvertZeta_cs(self.A_s, self.A_c, self.Qs, self.Qc, Zeta_cs=self.Merging_func2)
-                VerifierPartition = lambda Partition: WithPartition_Zeta_cs(self.Zeta_cs) if str(self.Partition) == 'Yes' else WithoutPartition_Zeta_cs(self.Zeta_cs)
-                self.zeta = VerifierPartition(self.Partition)
-
-            if not self.Merging:
-                WithoutPartition_Zeta_cs = lambda Zeta_cs: self.Dividing_func1 if str(Zeta_cs) == 'Yes' else ConvertZeta_cs(self.A_s, self.A_c, self.Qs, self.Qc, Zeta_cs=self.Dividing_func1)
-                WithPartition_Zeta_cs = lambda Zeta_cs: print('Nao existe dados de Divisao com Particao.') if str(Zeta_cs) == 'Yes' else print('Nao existe dados de Divisao com Particao.')
-                VerifierPartition = lambda Partition: WithoutPartition_Zeta_cs(self.Zeta_cs) if str(self.Partition) == 'No' else WithPartition_Zeta_cs(self.Zeta_cs)
-                self.zeta = VerifierPartition(self.Partition)
 
 class Node():
     def __init__(self, p):
@@ -229,15 +51,22 @@ class Net():
         self.node_variable = list(set(self.connect['from'].values).intersection(self.connect['to'].values))
         self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
 
-        self.Set_Mass_Equations()
+        # ADICIONAR M_EXTRA SE LEN > 1:
+        for x in range(len(self.node.index.values)):
+            no = self.node.index.values[x]
+            if len(self.connect.loc[self.connect['to']==no].index.values) > 1:
+                self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
 
         # COLOCAR OS NOS ASSOCIADOS AS LIGACOES
-        self.nodes_in_links = {self.connect.index[node]:  list(self.connect.loc[self.connect.index[node]]) for node in range(len(self.connect.index))}
+        #self.nodes_in_links = {self.connect.index[node]:  list(self.connect.loc[self.connect.index[node]]) for node in range(len(self.connect.index))}
 
         # COLOCAR AS LIGACOES ASSOCIADAS AOS NÓS VARIAVEIS
         self.links_in_nodes = {self.node_variable[node]: self.Set_In_Out(self.node_variable[node]) for node  in range(len(self.node_variable))}
 
-        # ATIVAR FUNÇÃO PARA ENCONTRAR OS VIZINHOS DOS NÓS VARIAVEIS
+        # GERAR AS EQUAÇÕES PARA CADA LIGAÇÃO
+        self.Set_Mass_Equations()
+
+        # GERAR OS BALANÇOS DE MASSA DOS NÓS VARIAVEIS
         self.Set_mass_balance()
 
         # CRIAR AS MATRIX DO SOLVER
@@ -302,8 +131,70 @@ class Net():
             self.equations[_todas_ligacoes_[link_index]][_find_[_todas_ligacoes_[link_index]].values[0]] = self.link[_ligacao_].a
             self.equations[_todas_ligacoes_[link_index]][_find_[_todas_ligacoes_[link_index]].values[1]] = - self.link[_ligacao_].a
 
-    def Verify_Flux_Direction(self, ligacao):
-        pass
+    # VALOR ABSOLUTO PARA VAZÃO MASSICA / INVERTE FROM e TO VALORES
+    def Algorithm_0(self):
+        for node_index in range(len(self.node_variable)):
+            _node_ = self.node_variable[node_index]
+
+            # dict with in and outs by nodes
+            for in_index in range(len(self.links_in_nodes[_node_]["in"])):
+                link_ = self.links_in_nodes[_node_]["in"][in_index]
+                if self.link[link_].m < 0:
+                    self.link[link_].m = abs(self.link[link_].m)
+                    self.connect.loc[link_] = self.connect.loc[link_].values[::-1]
+            for out_index in range(len(self.links_in_nodes[_node_]["out"])):
+                link_ = self.links_in_nodes[_node_]["out"][out_index]
+                if self.link[link_].m < 0:
+                    self.link[link_].m = abs(self.link[link_].m)
+                    self.connect.loc[link_] = self.connect.loc[link_].values[::-1]
+
+    # TROCAR AS DIREÇÕES IN E OUT
+    def Algorithm_1(self):
+        for node_index in range(len(self.node_variable)):
+            _node_ = self.node_variable[node_index]
+            # dict with in and outs by nodes
+            for in_index in range(len(self.links_in_nodes[_node_]["in"])):
+                try:
+                    link_ = self.links_in_nodes[_node_]["in"][in_index]
+                    if self.link[link_].m < 0:
+                        self.links_in_nodes[_node_]["out"].append(link_)
+                        self.links_in_nodes[_node_]["in"].remove(link_)
+                except IndexError: pass
+
+            for out_index in range(len(self.links_in_nodes[_node_]["out"])):
+                try:
+                    link_ = self.links_in_nodes[_node_]["out"][out_index]
+                    if self.link[link_].m < 0:
+                        self.links_in_nodes[_node_]["in"].append(link_)
+                        self.links_in_nodes[_node_]["out"].remove(link_)
+                except IndexError:
+                    pass
+
+    # TROCAR AS DIREÇÕES IN E OUT / INVERTE FROM e TO VALORES
+    def Algorithm_1_2(self):
+        for node_index in range(len(self.node_variable)):
+            _node_ = self.node_variable[node_index]
+            # dict with in and outs by nodes
+            for in_index in range(len(self.links_in_nodes[_node_]["in"])):
+                try:
+                    link_ = self.links_in_nodes[_node_]["in"][in_index]
+                    if self.link[link_].m < 0:
+                        self.links_in_nodes[_node_]["out"].append(link_)
+                        self.links_in_nodes[_node_]["in"].remove(link_)
+                        self.connect.loc[link_] = self.connect.loc[link_].values[::-1]
+
+                except IndexError:
+                    pass
+
+            for out_index in range(len(self.links_in_nodes[_node_]["out"])):
+                try:
+                    link_ = self.links_in_nodes[_node_]["out"][out_index]
+                    if self.link[link_].m < 0:
+                        self.links_in_nodes[_node_]["in"].append(link_)
+                        self.links_in_nodes[_node_]["out"].remove(link_)
+                        self.connect.loc[link_] = self.connect.loc[link_].values[::-1]
+                except IndexError:
+                    pass
 
 
     def Identify_Device_Type(self):
@@ -314,14 +205,13 @@ class Net():
             # DEVICE == TUBO
             if type_device == 'd':
                 length = float(input(f"[TUBO] Digite o Valor do Comprimento do Tubo {device} [m]"))
-                self.link[self.connect.index.values[index]] = Link.Tubo(self.link[device].m,
+                self.link[self.connect.index.values[index]] = Tubo(self.link[device].m,
                                                                         self.link[device].A_r,
                                                                         self.link[device].A_i,
                                                                         self.link[device].A_o,
                                                                         self.link[device].rho,
                                                                         self.link[device].zeta,
                                                                         length)
-
             # DEVICE == CONEXÃO EM T
             if type_device == 'ct':
                 juncao = "Yes"
@@ -330,7 +220,7 @@ class Net():
                 if particao == 1: particao = "Yes"
                 if particao == 2: particao = "No"
 
-                self.link[self.connect.index.values[index]] = Link.Tubo(self.link[device].m,
+                self.link[self.connect.index.values[index]] = Conexao_T(self.link[device].m,
                                                                         self.link[device].A_r,
                                                                         self.link[device].A_i,
                                                                         self.link[device].A_o,
@@ -341,7 +231,7 @@ class Net():
             if type_device == 'df':
                 angulo = float(input(f"[DIFUSOR] Digite o Valor do Ângulo do Difusor {device} [º]"))
                 length = float(input(f"[DIFUSOR] Digite o Valor do Comprimento Anterior A Entrada do Difusor {device} [m]"))
-                self.link[self.connect.index.values[index]] = Link.Difusor(self.link[device].m,
+                self.link[self.connect.index.values[index]] = Difusor(self.link[device].m,
                                                                         self.link[device].A_r,
                                                                         self.link[device].A_i,
                                                                         self.link[device].A_o,
@@ -361,15 +251,16 @@ class Net():
             _a_node_ = self.m_line.loc[_node_].values
             self.m_line.loc[_node_] = _a_node_ * _pressure_node_
 
-    def Start_Iteration(self, epocas):
+    def Start_Iteration(self, iterations):
         self.alpha_p = 0.5
         self.alpha_m = 0.5
         self.Identify_Device_Type()
-        self.plot_pressure = {}
-        for x in range(epocas):
-            #self.plot_pressure[epocas + 1] =
-            print(self.node.values.reshape(-1))
-            print("---------------------------------------------------------------------------------------------------------")
+        # criar os index
+        self.plot_pressure = []
+        self.plot_mass = []
+
+        for x in range(iterations):
+            # GERAR DATAFRAME COM OS TERMOS (a_n * p_n) - (a_n-1 * p_n-1)
             self.Set_M_Line_Equations()
 
             # ATUALIZAR OS VALORES DAS PRESSOES
@@ -379,20 +270,22 @@ class Net():
             delta_p = pressure_line - pressure_dot
             self.node.loc[self.node_variable] = (pressure_dot + self.alpha_p * delta_p).reshape((self.shape, 1))
 
+            # ARMAZENAR DADOS DAS ITERACOES DAS PRESSOES E DAS VAZOES
+            self.plot_pressure.append(list(self.node.loc[:].values.reshape(-1)))
+            self.plot_mass.append([self.link[self.connect.index.values[index]].m for index in range(len(self.connect.index.values))])
+
             # ATUALIZAR OS VALORES DAS VAZOES MASSICAS
             ligacoes = self.connect.index.values
             self.mass_line = {ligacoes[index]: self.m_line.cumsum().values[-1][index] for index in range(len(ligacoes))}
             self.mass_dot = {ligacoes[index]: self.link[ligacoes[index]].m for index in range(len(ligacoes))}
-            self.delta_m = {ligacoes[index]: self.mass_line[ligacoes[index]] - self.mass_dot[ligacoes[index]] for index
-                            in range(len(ligacoes))}
-
-            print(np.array(list(self.mass_dot.values())).reshape(-1))
-            print("---------------------------------------------------------------------------------------------------------")
+            self.delta_m = {ligacoes[index]: self.mass_line[ligacoes[index]] - self.mass_dot[ligacoes[index]] for index in range(len(ligacoes))}
 
             for link_index in range(len(self.connect.index.values)):
                 _ligacao_ = self.connect.index.values[link_index]
                 self.link[_ligacao_].m = self.link[_ligacao_].m + self.alpha_m * self.delta_m[_ligacao_]
+                self.link[_ligacao_].Set_Zeta()
                 self.link[_ligacao_].Set_a()
+
             self.Set_Mass_Equations()
             self.Set_mass_balance()
 
@@ -403,4 +296,252 @@ class Net():
             self.result = {self.node_variable[i]: np.linalg.solve(self.matrix_a, self.matrix_b)[i] for i in
                            range(len(self.node_variable))}
 
+        # DADOS PARA PLOTAGEM
+        self.pressure_df = pd.DataFrame(self.plot_pressure)
+        self.mass_df = pd.DataFrame(self.plot_mass)
+        self.pressure_df.columns = [f"p_{self.node.index.values[i]}" for i in range(len(self.node.index.values))]
+        self.mass_df.columns = self.connect.index.values
 
+
+
+class Tubo(Link):
+    def __init__(self, m, A_r, A_i, A_o, rho, zeta, l):
+        Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
+        self.mu = 1.12e-3
+        self.l = l
+        self.D = np.sqrt((4 * self.A_r) / np.pi)
+        self.U = self.m / (self.A_r * self.rho)
+        self.nu = self.mu / self.rho
+        self.df = pd.read_excel(
+            r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\tubo_chartB.xlsx',
+            engine='openpyxl').set_index('Reynolds')
+
+        self.Set_Zeta()
+        self.Set_a()
+
+    def lambda_(self, Re):
+        interp = interp1d(self.df.index, self.df['lambda'].values)
+        if Re <= 2000:
+            return 64 / Re
+        if (Re > 2000 and Re <= 4000):
+            return float(interp(Re))
+        if (Re > 4000 and Re < 100000):
+            return 0.3164 / (Re ** 0.25)
+        if Re >= 100000:
+            return 1 / ((1.8 * np.log10(Re) - 1.64) ** 2)
+
+    def Set_Zeta(self):
+        Re = round(self.U * self.D / self.nu)
+        lambdaValue = float(self.lambda_(Re))
+        self.zeta = lambdaValue * (self.l / self.D)
+
+class Difusor(Link):
+    def __init__(self, m, A_r, A_i, A_o, rho, zeta, angle, l, UniformVelocityProfile=True):
+        Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
+        self.mu = 1.12e-3
+        self.UniformVelocityProfile = UniformVelocityProfile
+        self.angle = angle
+        self.l = l
+        self.Nair = self.A_o / self.A_i
+        self.D = np.sqrt((4 * self.A_r) / np.pi)
+        self.U = self.m / (self.A_r * self.rho)
+        self.nu = self.mu / self.rho
+        self.Re = abs(round(self.U * self.D / self.nu))
+        self.df_z = {2: pd.read_excel(
+            r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_zetad_Nair2.xlsx',
+            skiprows=1, engine='openpyxl').set_index('ang'),  #
+                     4: pd.read_excel(
+                         r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_zetad_Nair4.xlsx',
+                         skiprows=1, engine='openpyxl').set_index('ang'),  #
+                     6: pd.read_excel(
+                         r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_zetad_Nair6.xlsx',
+                         skiprows=1, engine='openpyxl').set_index('ang'),  #
+                     10: pd.read_excel(
+                         r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_zetad_Nair10.xlsx',
+                         skiprows=1, engine='openpyxl').set_index('ang'),  #
+                     16: pd.read_excel(
+                         r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_zetad_Nair16.xlsx',
+                         skiprows=1, engine='openpyxl').set_index('ang')}
+        self.interpz = {i: interp2d(self.df_z[i].index, self.df_z[i].columns, np.array(self.df_z[i]).T) for i in
+                        [2, 4, 6, 10, 16]}
+        self.df_kd1 = {50000: pd.read_excel(
+            r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re50000.xlsx',
+            skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       100000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re100000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       300000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re300000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       400000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re300000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       2000000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re2000000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       5000000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re2000000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       6000000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re6000000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       8000000000000000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n2_Re6000000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang')}
+
+        self.df_kd2 = {50000: pd.read_excel(
+            r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re50000.xlsx',
+            skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       100000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re100000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       300000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re300000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       400000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re300000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       2000000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re2000000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       5000000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re2000000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       6000000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re6000000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang'),  #
+                       8000000000000000: pd.read_excel(
+                           r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\difusor_Kd_n4_Re6000000.xlsx',
+                           skiprows=2, engine='openpyxl').set_index('ang')}
+        self.interpKd1 = {i: interp2d(self.df_kd1[i].index, self.df_kd1[i].columns, np.array(self.df_kd1[i]).T) for i in
+                          [50000, 100000, 300000, 400000, 2000000, 5000000, 6000000, 8000000000000000]}
+        self.interpKd2 = {i: interp2d(self.df_kd2[i].index, self.df_kd2[i].columns, np.array(self.df_kd2[i]).T) for i in
+                          [50000, 100000, 300000, 400000, 2000000, 5000000, 6000000, 8000000000000000]}
+        self.Set_Zeta()
+
+    def Zetad(self, alpha, nair, Re):
+        nair_values = [2, 4, 6, 10, 16]
+        zetad_lista = []
+        for i in range(len(nair_values)):
+            zetad_lista = zetad_lista + [float(self.interpz[nair_values[i]](alpha, Re))]
+        zetad_interp = interp1d(nair_values, zetad_lista)
+        return float(zetad_interp(nair))
+
+    def Kd(self, alpha, nair, Re, l_0, D_0):
+        Re_values = [50000, 100000, 300000, 400000, 2000000, 5000000, 6000000, 8000000000000000]
+        nair_values = [2, 4, 16]
+        values_n2 = []
+        values_n4 = []
+        Kd_values = []
+        for i in range(len(Re_values)):
+            values_n2 = values_n2 + [float(self.interpKd1[Re_values[i]](alpha, l_0 / D_0))]
+            values_n4 = values_n4 + [float(self.interpKd2[Re_values[i]](alpha, l_0 / D_0))]
+        for x in range(len(nair_values)):
+            Kd_values = Kd_values + [float(interpReynolds[nair_values[x]](Re))]
+        interpNair = interp1d(nair_values, Kd_values)
+
+        return float(interpNair(nair))
+
+    def Set_Zeta(self):
+        self.zeta_d = self.Zetad(alpha=self.angle, nair=self.Nair, Re=self.Re)
+        if self.UniformVelocityProfile == True:
+            self.zeta = self.zeta_d
+        else:
+            self.k_d = self.Kd(alpha=self.angle, nair=self.Nair, Re=self.Re, l_0=self.l, D_0=self.D)
+            self.zeta = self.zeta_d * self.k_d
+
+class Conexao_T(Link):
+    def __init__(self, m, A_r, A_i, A_o, rho, zeta, Merging, Zeta_cs, Partition):
+        Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
+        self.mu = 1.12e-3
+        self.Merging = Merging
+        self.Zeta_cs = Zeta_cs
+        self.Partition = Partition
+        self.D = np.sqrt((4 * self.A_r) / np.pi)
+        self.U = self.m / (self.A_r * self.rho)
+        self.nu = self.mu / self.rho
+
+        self.df_graphA_1 = pd.read_excel(
+            r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\conexao_t_zetaLinha1_cs.xlsx',
+            skiprows=2, engine='openpyxl').set_index('Qs/Qc')
+        self.interp_graphA_1 = interp2d(self.df_graphA_1.index, self.df_graphA_1.columns, np.array(self.df_graphA_1).T)
+
+        self.df_graphA_2 = pd.read_excel(
+            r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\conexao_t_zeta1_cs.xlsx',
+            skiprows=2, engine='openpyxl').set_index('Qs/Qc')
+        self.interp_graphA_2 = interp1d(self.df_graphA_2.index, self.df_graphA_2[1])
+
+        self.df_K1 = pd.read_excel(
+            r'C:\Users\clayt\AppData\Local\Programs\Python\Python39\Lib\site-packages\DuctNet\loss_in_devices\conexao_t_df_k1.xlsx',
+            skiprows=1, engine='openpyxl').set_index('Qs/Qc')
+        self.interp_k1 = interp1d(self.df_K1.index, self.df_K1[90])
+
+        self.A_s = 1
+        self.A_c = 1
+        if self.Merging == True:
+            self.A_s = self.A_i
+            self.A_c = self.A_o
+        if self.Merging == False:
+            self.A_s = self.A_o
+            self.A_c = self.A_i
+
+        self.U_s = self.m / (self.A_s * self.rho)
+        self.U_c = self.m / (self.A_c * self.rho)
+        self.Qs = self.A_s * self.U_s
+        self.Qc = self.A_c * self.U_c
+
+        self.A = self.A_parameter(self.A_s, self.A_c, self.Qs, self.Qc)
+        self.k_1 = self.k1_parameter(self.A_s, self.A_c, self.Qs, self.Qc)
+        self.Merging_func2 = self.A * (1 + (self.A_c / self.A_s) ** 2 + 3 * (self.A_c / self.A_s) ** 2 * (
+                    (self.Qs / self.Qc) ** 2 - self.Qs / self.Qc))
+        self.Dividing_func1 = 1 + self.k_1 * (self.U_s / self.U_c) ** 2
+
+        self.Set_Zeta()
+
+    def k1_parameter(self, Fs, Fc, Qs, Qc):
+        if Fs / Fc <= 1:
+            return float(self.interp_k1(Qs / Qc))
+        if Fs / Fc > 1:
+            if Qs / Qc <= 0.4:
+                return 0.9
+            if Qs / Qc > 0.4:
+                return 0
+
+    def A_parameter(self, Fs, Fc, Qs, Qc):
+        if Fs / Fc <= 0.35 and Qs / Qc <= 1:
+            return 1.0
+        if Fs / Fc > 0.35 and Qs / Qc <= 0.4:
+            return 0.9 * (1 - Qs / Qc)
+        if Fs / Fc > 0.35 and Qs / Qc > 0.4:
+            return 0.55
+
+    def ConvertZeta_cs(self, Fs, Fc, Qs, Qc, Zeta_cs):
+        return Zeta_cs / ((Qs * Fc) / (Qc * Fs)) ** 2
+
+    def Verificador(self, Fs, Fc):
+        if Fs / Fc == 1:
+            Merging_func1 = float(self.interp_graphA_2(self.Qs / self.Qc))
+            return Merging_func1
+        else:
+            print('Nao existe dados de Juncao com Particaoo para Fs/Fc = {}'.format(Fs / Fc))
+
+    def Set_Zeta(self):
+        if self.Merging:
+            WithPartition_Zeta_cs = lambda Zeta_cs: self.Verificador(self.A_s, self.A_c) if str(
+                self.Zeta_cs) == 'Yes' else self.ConvertZeta_cs(self.A_s, self.A_c, self.Qs, self.Qc,
+                                                                Zeta_cs=self.Verificador(self.A_s, self.A_c))
+            WithoutPartition_Zeta_cs = lambda Zeta_cs: self.Merging_func2 if str(
+                self.Zeta_cs) == 'Yes' else self.ConvertZeta_cs(self.A_s, self.A_c, self.Qs, self.Qc,
+                                                                Zeta_cs=self.Merging_func2)
+            VerifierPartition = lambda Partition: WithPartition_Zeta_cs(self.Zeta_cs) if str(
+                self.Partition) == 'Yes' else WithoutPartition_Zeta_cs(self.Zeta_cs)
+            self.zeta = VerifierPartition(self.Partition)
+
+        if not self.Merging:
+            WithoutPartition_Zeta_cs = lambda Zeta_cs: self.Dividing_func1 if str(Zeta_cs) == 'Yes' else ConvertZeta_cs(
+                self.A_s, self.A_c, self.Qs, self.Qc, Zeta_cs=self.Dividing_func1)
+            WithPartition_Zeta_cs = lambda Zeta_cs: print('Nao existe dados de Divisao com Particao.') if str(
+                Zeta_cs) == 'Yes' else print('Nao existe dados de Divisao com Particao.')
+            VerifierPartition = lambda Partition: WithoutPartition_Zeta_cs(self.Zeta_cs) if str(
+                self.Partition) == 'No' else WithPartition_Zeta_cs(self.Zeta_cs)
+            self.zeta = VerifierPartition(self.Partition)

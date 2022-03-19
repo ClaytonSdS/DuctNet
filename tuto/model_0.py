@@ -11,11 +11,6 @@ net = dn.Net(f'{file_path}\\node.inp',
             f'{file_path}\\link.inp',
              f'{file_path}\\connect.inp')
 
-a = pd.read_csv('C:\\Users\\clayt\\AppData\\Local\\Programs\\Python\\Python39\\Lib\\site-packages\\DuctNet\data\\node.inp', sep='\t')
-b = pd.read_csv('C:\\Users\\clayt\\AppData\\Local\\Programs\\Python\\Python39\\Lib\\site-packages\\DuctNet\data\\link.inp', sep='\t')
-c = pd.read_csv('C:\\Users\\clayt\\AppData\\Local\\Programs\\Python\\Python39\\Lib\\site-packages\\DuctNet\data\\connect.inp', sep='\t')
-
-
 
 def fun(x):
     x.Set_Dynamic()
