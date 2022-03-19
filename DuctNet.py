@@ -46,7 +46,7 @@ class Net():
         self.dflink = pd.read_csv(flink, sep='|', index_col='idx')
         self.connect = pd.read_csv(fconnect, sep='|', index_col='lk')
         self.DictLink()
-
+        print('aaa')
         # NÓS DE CONTORNO E NÓS DE BALANÇO DE MASSA (VARIAVEIS)
         self.node_variable = list(set(self.connect['from'].values).intersection(self.connect['to'].values))
         self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
