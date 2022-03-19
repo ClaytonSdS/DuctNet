@@ -11,6 +11,7 @@ from scipy.optimize import minimize_scalar as minimize_scalar
 from scipy.optimize import minimize as minimize
 from scipy.optimize import bisect as bisect
 
+print('teste')
 
 # from UnitConv import UnitConv as uc
 class Link():
