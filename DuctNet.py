@@ -55,7 +55,6 @@ class Node():
     def __init__(self, p):
         self.p = p
 
-print('asdasdsadsad')
 class Net():
     def __init__(self, fnode, flink, fconnect):
         self.node = pd.read_csv(fnode, sep='|', index_col='idx')
@@ -216,6 +215,7 @@ class Net():
         self.plot_mass = []
 
         for x in range(iterations):
+            print(f'{round(x/iterations,2)} %')
             # GERAR DATAFRAME COM OS TERMOS (a_n * p_n) - (a_n-1 * p_n-1)
             self.Set_M_Line_Equations()
 
@@ -244,14 +244,14 @@ class Net():
                         no = self.node.index.values[x]
                         if len(self.connect.loc[self.connect['to'] == no].index.values) > 1:
                             self.merging_links = self.connect.loc[self.connect['to'] == no].index.values
-                            self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
+                            self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = abs(self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"]).sum()
 
                             # ATUALIZAR INFORMAÇÕES DE MERGING E VAZAO EXTRA
                             for item in range(len(self.merging_links)):
                                 self.link[self.merging_links[item]].m_extra = self.dflink["m_extra"].loc[self.merging_links[item]]
                                 self.link[self.merging_links[item]].Set_Parameters()
-                                self.link[_ligacao_].Set_Zeta()
-                                self.link[_ligacao_].Set_a()
+                                self.link[self.merging_links[item]].Set_Zeta()
+                                self.link[self.merging_links[item]].Set_a()
 
 
                 # OUTRAS CONEXOES
