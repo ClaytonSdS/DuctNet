@@ -55,7 +55,7 @@ class Node():
     def __init__(self, p):
         self.p = p
 
-
+print('asdasdsadsad')
 class Net():
     def __init__(self, fnode, flink, fconnect):
         self.node = pd.read_csv(fnode, sep='|', index_col='idx')
