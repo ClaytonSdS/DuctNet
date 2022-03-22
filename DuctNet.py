@@ -215,7 +215,7 @@ class Net():
         self.plot_mass = []
 
         for x in range(iterations):
-            print(f'{round(x/iterations,2)} %')
+            #print(f'{round((x+1)/iterations * 100,2)} %')
             # GERAR DATAFRAME COM OS TERMOS (a_n * p_n) - (a_n-1 * p_n-1)
             self.Set_M_Line_Equations()
 
@@ -244,7 +244,7 @@ class Net():
                         no = self.node.index.values[x]
                         if len(self.connect.loc[self.connect['to'] == no].index.values) > 1:
                             self.merging_links = self.connect.loc[self.connect['to'] == no].index.values
-                            self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = abs(self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"]).sum()
+                            self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
 
                             # ATUALIZAR INFORMAÇÕES DE MERGING E VAZAO EXTRA
                             for item in range(len(self.merging_links)):
@@ -420,7 +420,7 @@ class Conexao_T(Link):
 
     def k1_parameter(self, Fs, Fc, Qs, Qc):
         if Fs / Fc <= 1:
-            return float(self.interp_k1(Qs / Qc))
+            return float(self.interp_k1(Qs/Qc))
         if Fs / Fc > 1:
             if Qs / Qc <= 0.4:
                 return 0.9
@@ -460,13 +460,13 @@ class Conexao_T(Link):
         self.R_Q = self.Qs/self.Qc
         self.R_A = self.A_s / self.A_c
 
-        # FUNÇÕES INTERPOLAÇÃO DF - PARAMETROS
-        self.A = self.A_parameter(self.A_s, self.A_c, abs(self.Qs), abs(self.Qc))    # usado para JUNÇÃO sem partição
-        self.k_1 = self.k1_parameter(self.A_s, self.A_c, self.Qs, self.Qc) # usado para DIVISÃO sem partição
+        if self.Merging:
+            self.A = self.A_parameter(self.A_s, self.A_c, self.Qs, self.Qc)    # usado para JUNÇÃO sem partição
+            self.Merging_func2 = self.A * (1 + (self.A_c / self.A_s) ** 2 + 3 * (self.A_c / self.A_s) ** 2 * ((self.R_Q) ** 2 - self.R_Q)) # usado para JUNÇÃO sem partição
 
-        # FUNÇÕES NUMÉRICAS
-        self.Merging_func2 = self.A * (1 + (self.A_c / self.A_s) ** 2 + 3 * (self.A_c / self.A_s) ** 2 * ((self.Qs / self.Qc) ** 2 - self.Qs / self.Qc)) # usado para JUNÇÃO sem partição
-        self.Dividing_func1 = 1 + self.k_1 * (self.U_s / self.U_c) ** 2   # usado para DIVISÃO sem partição
+        if not self.Merging:
+            self.k_1 = self.k1_parameter(self.A_s, self.A_c, self.Qs, self.Qc)  # usado para DIVISÃO sem partição
+            self.Dividing_func1 = 1 + self.k_1 * (self.U_s / self.U_c) ** 2  # usado para DIVISÃO sem partição
 
     def Set_Zeta(self):
         if self.Merging:
