@@ -236,9 +236,28 @@ class Net():
             for link_index in range(len(self.connect.index.values)):
                 _ligacao_ = self.connect.index.values[link_index]
                 self.link[_ligacao_].m = self.link[_ligacao_].m + self.alpha_m * self.delta_m[_ligacao_]
-                #self.dflink.loc[_ligacao_, "m"] = self.link[_ligacao_].m
-                self.link[_ligacao_].Set_Zeta()
-                self.link[_ligacao_].Set_a()
+                self.dflink.loc[_ligacao_, "m"] = self.link[_ligacao_].m
+                # CONEXÃO T
+                if re.split("\d", _ligacao_)[0] == "ct":
+                    # CASO DE JUNÇÃO
+                    for x in range(len(self.node.index.values)):
+                        no = self.node.index.values[x]
+                        if len(self.connect.loc[self.connect['to'] == no].index.values) > 1:
+                            self.merging_links = self.connect.loc[self.connect['to'] == no].index.values
+                            self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
+
+                            # ATUALIZAR INFORMAÇÕES DE MERGING E VAZAO EXTRA
+                            for item in range(len(self.merging_links)):
+                                self.link[self.merging_links[item]].m_extra = self.dflink["m_extra"].loc[self.merging_links[item]]
+                                self.link[self.merging_links[item]].Set_Parameters()
+                                self.link[_ligacao_].Set_Zeta()
+                                self.link[_ligacao_].Set_a()
+
+
+                # OUTRAS CONEXOES
+                else:
+                    self.link[_ligacao_].Set_Zeta()
+                    self.link[_ligacao_].Set_a()
 
             self.Set_Mass_Equations()
             self.Set_mass_balance()
