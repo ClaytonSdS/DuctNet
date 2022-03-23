@@ -67,21 +67,32 @@ class Net():
 
         self.Identify_Device_Type()
 
+        self.merging_links = []
+        self.dividing_links = []
         # ADICIONAR M_EXTRA SE LEN > 1:
-
         # CASO DE JUNÇÃO
         for x in range(len(self.node.index.values)):
             no = self.node.index.values[x]
             if len(self.connect.loc[self.connect['to']==no].index.values) > 1:
-                self.merging_links = self.connect.loc[self.connect['to']==no].index.values
-                self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
-
-                # ATUALIZAR INFORMAÇÕES DE MERGING E VAZAO EXTRA
+                self.addList_Merging(list(self.connect.loc[self.connect['to']==no].index.values))
+                # ATUALIZAR INFORMAÇÕES DE MERGING
                 for item in range(len(self.merging_links)):
                     self.link[self.merging_links[item]].Merging = True
-                    #self.link[self.merging_links[item]].m_extra = self.dflink["m_extra"].loc[self.merging_links[item]]
-                    #self.link[self.merging_links[item]].Set_Parameters()
 
+
+        self.Refresh_M_Extra()
+
+        # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS PARAMETROS DA CONEXÃO T
+        for conexao_t in range(len(self.merging_links)):
+            _ligacao_ = self.merging_links[conexao_t]
+            self.link[_ligacao_].m_extra = self.dflink.loc[_ligacao_, "m_extra"]
+            self.link[_ligacao_].Set_Parameters()
+
+        # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS VALORES DE ZETA E a
+        for link_index in range(len(self.connect.index.values)):
+            _ligacao_ = self.connect.index.values[link_index]
+            self.link[_ligacao_].Set_Zeta()
+            self.link[_ligacao_].Set_a()
 
         # COLOCAR AS LIGACOES ASSOCIADAS AOS NÓS VARIAVEIS
         self.links_in_nodes = {self.node_variable[node]: self.Set_In_Out(self.node_variable[node]) for node  in range(len(self.node_variable))}
@@ -90,7 +101,7 @@ class Net():
         self.Set_Mass_Equations()
 
         # GERAR OS BALANÇOS DE MASSA DOS NÓS VARIAVEIS
-        self.Set_mass_balance()
+        self.Set_Mass_Balance()
 
         # CRIAR AS MATRIX DO SOLVER
         self.matrix_a = self.mass_balance[:].loc[self.node_variable].values
@@ -107,12 +118,24 @@ class Net():
                               self.dflink.loc[ID, 'zeta'])
                      for ID in self.dflink.index}
 
+    def addList_Merging(self, lista):
+        for x in range(len(lista)):
+            if not lista[x] in self.merging_links:
+                self.merging_links.append(lista[x])
+
+    def Refresh_M_Extra(self):
+        for x in range(len(self.node.index.values)):
+            no = self.node.index.values[x]
+            if len(self.connect.loc[self.connect['to'] == no].index.values) > 1:
+                #self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.link["d2"].m
+                self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
+
     # SEPARAR FLUXOS CHEGANDO E SAINDO DE NÓS (IN, OUT)
     def Set_In_Out(self, no):
         return {'in': list(self.connect.loc[self.connect['to']==no].index), 'out': list(self.connect.loc[self.connect['from']==no].index)}
 
     # FUNÇÃO PARA CALCULO DOS BALANÇO DE MASSAS NOS NÓS VARIAVEIS
-    def Set_mass_balance(self):
+    def Set_Mass_Balance(self):
         nodes = self.node_variable + self.node_boundary
         nodes.sort()
         self.mass_balance = pd.DataFrame({"node": nodes}).set_index("node")
@@ -173,7 +196,7 @@ class Net():
             # DEVICE == CONEXÃO EM T
             if type_device == 'ct':
                 juncao = "Yes"
-                referencia_zeta_cs = "Yes"
+                referencia_zeta_cs = "No"
                 self.link[self.connect.index.values[index]] = Conexao_T(self.link[device].m,
                                                                         self.link[device].m*2,
                                                                         self.link[device].A_r,
@@ -200,16 +223,15 @@ class Net():
         nodes.sort()
         self.m_line = self.equations[:]
         for node_index in range(len(self.node.index)):
-
             _node_ = self.node.index[node_index]
             _pressure_node_ = self.node.loc[_node_].values
             _a_node_ = self.m_line.loc[_node_].values
             self.m_line.loc[_node_] = _a_node_ * _pressure_node_
 
     def Start_Iteration(self, iterations):
-        self.alpha_p = 0.5
-        self.alpha_m = 0.5
-        #self.Identify_Device_Type()
+        self.alpha_p = 0.2
+        self.alpha_m = 0.2
+
         # criar os index
         self.plot_pressure = []
         self.plot_mass = []
@@ -217,6 +239,7 @@ class Net():
         for x in range(iterations):
             #print(f'{round((x+1)/iterations * 100,2)} %')
             # GERAR DATAFRAME COM OS TERMOS (a_n * p_n) - (a_n-1 * p_n-1)
+
             self.Set_M_Line_Equations()
 
             # ATUALIZAR OS VALORES DAS PRESSOES
@@ -232,35 +255,29 @@ class Net():
             self.mass_dot = {ligacoes[index]: self.link[ligacoes[index]].m for index in range(len(ligacoes))}
             self.delta_m = {ligacoes[index]: self.mass_line[ligacoes[index]] - self.mass_dot[ligacoes[index]] for index in range(len(ligacoes))}
 
-
+            # ATUALIZAR VAZÕES MASSICAS
             for link_index in range(len(self.connect.index.values)):
                 _ligacao_ = self.connect.index.values[link_index]
                 self.link[_ligacao_].m = self.link[_ligacao_].m + self.alpha_m * self.delta_m[_ligacao_]
                 self.dflink.loc[_ligacao_, "m"] = self.link[_ligacao_].m
-                # CONEXÃO T
-                if re.split("\d", _ligacao_)[0] == "ct":
-                    # CASO DE JUNÇÃO
-                    for x in range(len(self.node.index.values)):
-                        no = self.node.index.values[x]
-                        if len(self.connect.loc[self.connect['to'] == no].index.values) > 1:
-                            self.merging_links = self.connect.loc[self.connect['to'] == no].index.values
-                            self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
 
-                            # ATUALIZAR INFORMAÇÕES DE MERGING E VAZAO EXTRA
-                            for item in range(len(self.merging_links)):
-                                self.link[self.merging_links[item]].m_extra = self.dflink["m_extra"].loc[self.merging_links[item]]
-                                self.link[self.merging_links[item]].Set_Parameters()
-                                self.link[self.merging_links[item]].Set_Zeta()
-                                self.link[self.merging_links[item]].Set_a()
+            # CALCULAR NOVAS VAZOES EXTRAS
+            self.Refresh_M_Extra()
 
+            # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS PARAMETROS DA CONEXÃO T
+            for conexao_t in range(len(self.merging_links)):
+                _ligacao_ = self.merging_links[conexao_t]
+                self.link[_ligacao_].m_extra = self.dflink.loc[_ligacao_, "m_extra"]
+                self.link[_ligacao_].Set_Parameters()
 
-                # OUTRAS CONEXOES
-                else:
-                    self.link[_ligacao_].Set_Zeta()
-                    self.link[_ligacao_].Set_a()
+            # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS VALORES DE ZETA E a
+            for link_index in range(len(self.connect.index.values)):
+                _ligacao_ = self.connect.index.values[link_index]
+                self.link[_ligacao_].Set_Zeta()
+                self.link[_ligacao_].Set_a()
 
             self.Set_Mass_Equations()
-            self.Set_mass_balance()
+            self.Set_Mass_Balance()
 
             # CRIAR AS MATRIX DO SOLVER
             self.matrix_a = self.mass_balance[:].loc[self.node_variable].values
@@ -452,7 +469,7 @@ class Conexao_T(Link):
         self.Qc = self.m_extra / self.rho
 
         #self.Qs = abs(self.Qs)
-        #self.Qc = abs(self.Qc)
+        #self.Qc = self.Qc)
 
         self.U_s = self.Qs / self.A_s
         self.U_c = self.Qc / self.A_c
