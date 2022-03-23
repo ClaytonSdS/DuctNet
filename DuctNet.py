@@ -70,6 +70,7 @@ class Net():
         self.merging_links = []
         self.dividing_links = []
         # ADICIONAR M_EXTRA SE LEN > 1:
+
         # CASO DE JUNÇÃO
         for x in range(len(self.node.index.values)):
             no = self.node.index.values[x]
@@ -79,7 +80,7 @@ class Net():
                 for item in range(len(self.merging_links)):
                     self.link[self.merging_links[item]].Merging = True
 
-
+        # CALCULAR NOVAS VAZOES EXTRAS
         self.Refresh_M_Extra()
 
         # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS PARAMETROS DA CONEXÃO T
@@ -127,7 +128,6 @@ class Net():
         for x in range(len(self.node.index.values)):
             no = self.node.index.values[x]
             if len(self.connect.loc[self.connect['to'] == no].index.values) > 1:
-                #self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.link["d2"].m
                 self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
 
     # SEPARAR FLUXOS CHEGANDO E SAINDO DE NÓS (IN, OUT)
@@ -238,8 +238,8 @@ class Net():
 
         for x in range(iterations):
             #print(f'{round((x+1)/iterations * 100,2)} %')
-            # GERAR DATAFRAME COM OS TERMOS (a_n * p_n) - (a_n-1 * p_n-1)
 
+            # GERAR DATAFRAME COM OS TERMOS (a_n * p_n) - (a_n-1 * p_n-1)
             self.Set_M_Line_Equations()
 
             # ATUALIZAR OS VALORES DAS PRESSOES
