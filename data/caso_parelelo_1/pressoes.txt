@@ -1,0 +1,18 @@
+net.link["d0"].Set_Dynamic()
+net.link["d1"].Set_Dynamic()
+net.link["d2"].Set_Dynamic()
+net.link["d3"].Set_Dynamic()
+net.link["d4"].Set_Dynamic()
+net.link["ct1"].Set_Dynamic()
+net.link["ct2"].Set_Dynamic()
+
+p_0 = 100e3
+p_1 = p_0 - net.link["d0"].DP
+p_2 = p_1 - net.link["d1"].DP
+p_3 = p_2 - net.link["ct1"].DP
+p_4 = p_3 - net.link["d2"].DP
+p_5 = p_4 - net.link["d3"].DP
+p_6 = p_3 + net.link["ct2"].DP
+p_7 = p_6 + net.link["d4"].DP
+
+
