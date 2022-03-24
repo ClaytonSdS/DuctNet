@@ -14,7 +14,7 @@ from scipy.optimize import minimize as minimize
 from scipy.optimize import bisect as bisect
 import pathlib
 import os
-
+import random
 
 
 system_linux = False
@@ -60,11 +60,15 @@ class Net():
         self.node = pd.read_csv(fnode, sep='|', index_col='idx')
         self.dflink = pd.read_csv(flink, sep='|', index_col='idx')
         self.connect = pd.read_csv(fconnect, sep='|', index_col='lk')
-        self.DictLink()
         # NÓS DE CONTORNO E NÓS DE BALANÇO DE MASSA (VARIAVEIS)
         self.node_variable = list(set(self.connect['from'].values).intersection(self.connect['to'].values))
         self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
 
+        # ATRIBUIR VALORES GUESS PARA M E P
+        self.Set_Guess_Values()
+        self.DictLink()
+
+        # IDENTIFICAR DISPOSITIVOS E ADICIONAR SEUS RESPECTIVOS PARAMETROS
         self.Identify_Device_Type()
 
         self.merging_links = []
@@ -76,11 +80,12 @@ class Net():
             no = self.node.index.values[x]
             if len(self.connect.loc[self.connect['to']==no].index.values) > 1:
                 self.addList_Merging(list(self.connect.loc[self.connect['to']==no].index.values))
-                # ATUALIZAR INFORMAÇÕES DE MERGING
-                for item in range(len(self.merging_links)):
-                    self.link[self.merging_links[item]].Merging = True
 
-        # CALCULAR NOVAS VAZOES EXTRAS
+        # ATUALIZAR INFORMAÇÕES DE MERGING
+        for juncao in range(len(self.merging_links)):
+            self.link[self.merging_links[juncao]].Merging = True
+
+        # CALCULAR VAZOES EXTRAS
         self.Refresh_M_Extra()
 
         # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS PARAMETROS DA CONEXÃO T
@@ -123,12 +128,6 @@ class Net():
         for x in range(len(lista)):
             if not lista[x] in self.merging_links:
                 self.merging_links.append(lista[x])
-
-    def Refresh_M_Extra(self):
-        for x in range(len(self.node.index.values)):
-            no = self.node.index.values[x]
-            if len(self.connect.loc[self.connect['to'] == no].index.values) > 1:
-                self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
 
     # SEPARAR FLUXOS CHEGANDO E SAINDO DE NÓS (IN, OUT)
     def Set_In_Out(self, no):
@@ -196,7 +195,7 @@ class Net():
             # DEVICE == CONEXÃO EM T
             if type_device == 'ct':
                 juncao = "Yes"
-                referencia_zeta_cs = "No"
+                referencia_zeta_cs = "Yes"
                 self.link[self.connect.index.values[index]] = Conexao_T(self.link[device].m,
                                                                         self.link[device].m*2,
                                                                         self.link[device].A_r,
@@ -228,15 +227,34 @@ class Net():
             _a_node_ = self.m_line.loc[_node_].values
             self.m_line.loc[_node_] = _a_node_ * _pressure_node_
 
-    def Start_Iteration(self, iterations):
-        self.alpha_p = 0.2
-        self.alpha_m = 0.2
+    def Refresh_M_Extra(self):
+        for x in range(len(self.node.index.values)):
+            no = self.node.index.values[x]
+            if len(self.connect.loc[self.connect['to'] == no].index.values) > 1:
+                self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
 
-        # criar os index
+    def Set_Guess_Values(self):
+        p_guess_max = self.node.loc[self.node_boundary].values.max()
+        p_guess_min = self.node.loc[self.node_boundary].values.min()
+        self.node.loc[self.node_variable] = 0.95*(p_guess_min+p_guess_max)/2
+        self.dflink['m'] = 15
+
+        #for node in range(len(self.node_variable)):
+           #self.node.loc[self.node.index[self.node_variable[node]]] = random.uniform(p_guess_max, p_guess_min)
+
+        #for ligacao in range(len(self.dflink['m'].index)):
+            #self.dflink.loc[self.dflink['m'].index[ligacao],"m"] = random.uniform(10.5, 15.5)
+
+
+    def Start_Iteration(self, iterations):
+        self.alpha_p = 0.3
+        self.alpha_m = 0.3
+
         self.plot_pressure = []
         self.plot_mass = []
 
         for x in range(iterations):
+
             #print(f'{round((x+1)/iterations * 100,2)} %')
 
             # GERAR DATAFRAME COM OS TERMOS (a_n * p_n) - (a_n-1 * p_n-1)
@@ -288,6 +306,7 @@ class Net():
             # ARMAZENAR DADOS DAS ITERACOES DAS PRESSOES E DAS VAZOES
             self.plot_pressure.append(list(self.node.loc[:].values.reshape(-1)))
             self.plot_mass.append([self.link[self.connect.index.values[index]].m for index in range(len(self.connect.index.values))])
+
 
         # DADOS PARA PLOTAGEM
         self.pressure_df = pd.DataFrame(self.plot_pressure)
