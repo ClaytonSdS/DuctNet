@@ -57,6 +57,10 @@ class Node():
 
 class Net():
     def __init__(self, fnode, flink, fconnect):
+        self.fnode = fnode
+        self.flink = flink
+        self.fconnect = fconnect
+
         self.node = pd.read_csv(fnode, sep='|', index_col='idx')
         self.dflink = pd.read_csv(flink, sep='|', index_col='idx')
         self.connect = pd.read_csv(fconnect, sep='|', index_col='lk')
@@ -236,19 +240,18 @@ class Net():
     def Set_Guess_Values(self):
         p_guess_max = self.node.loc[self.node_boundary].values.max()
         p_guess_min = self.node.loc[self.node_boundary].values.min()
-        self.node.loc[self.node_variable] = 0.95*(p_guess_min+p_guess_max)/2
+        self.node.loc[self.node_variable] = 0.95*(p_guess_max+p_guess_min)/2
         self.dflink['m'] = 15
 
         #for node in range(len(self.node_variable)):
-           #self.node.loc[self.node.index[self.node_variable[node]]] = random.uniform(p_guess_max, p_guess_min)
+           #self.node.loc[self.node.index[self.node_variable[node]]] = self.p_guess_max
 
         #for ligacao in range(len(self.dflink['m'].index)):
             #self.dflink.loc[self.dflink['m'].index[ligacao],"m"] = random.uniform(10.5, 15.5)
 
-
     def Start_Iteration(self, iterations):
-        self.alpha_p = 0.3
-        self.alpha_m = 0.3
+        self.alpha_p = 0.2
+        self.alpha_m = 0.2
 
         self.plot_pressure = []
         self.plot_mass = []
@@ -306,7 +309,6 @@ class Net():
             # ARMAZENAR DADOS DAS ITERACOES DAS PRESSOES E DAS VAZOES
             self.plot_pressure.append(list(self.node.loc[:].values.reshape(-1)))
             self.plot_mass.append([self.link[self.connect.index.values[index]].m for index in range(len(self.connect.index.values))])
-
 
         # DADOS PARA PLOTAGEM
         self.pressure_df = pd.DataFrame(self.plot_pressure)
@@ -486,9 +488,6 @@ class Conexao_T(Link):
 
         self.Qs = self.m / self.rho
         self.Qc = self.m_extra / self.rho
-
-        #self.Qs = abs(self.Qs)
-        #self.Qc = self.Qc)
 
         self.U_s = self.Qs / self.A_s
         self.U_c = self.Qc / self.A_c
