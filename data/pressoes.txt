@@ -3,34 +3,16 @@ net.link["d1"].Set_Dynamic()
 net.link["d2"].Set_Dynamic()
 net.link["d3"].Set_Dynamic()
 net.link["d4"].Set_Dynamic()
-net.link["d5"].Set_Dynamic()
-net.link["d6"].Set_Dynamic()
-net.link["d7"].Set_Dynamic()
 net.link["ct1"].Set_Dynamic()
 net.link["ct2"].Set_Dynamic()
-net.link["ct3"].Set_Dynamic()
-net.link["ct4"].Set_Dynamic()
-net.link["ct5"].Set_Dynamic()
-net.link["ct6"].Set_Dynamic()
-net.link["ct7"].Set_Dynamic()
-net.link["ct8"].Set_Dynamic()
-net.link["d8"].Set_Dynamic()
 
 p_0 = 100e3
 p_1 = p_0 - net.link["d0"].DP
 p_2 = p_1 - net.link["d1"].DP
 p_3 = p_2 - net.link["ct1"].DP
 p_4 = p_3 - net.link["d2"].DP
-p_5 = p_4 - net.link["ct3"].DP
+p_5 = p_4 - net.link["d3"].DP
 p_6 = p_3 + net.link["ct2"].DP
 p_7 = p_6 + net.link["d4"].DP
-p_8 = p_5 + net.link["ct4"].DP
-p_9 = p_5 - net.link["ct5"].DP
-p_10 = p_8 + net.link["d5"].DP
-p_11 = p_9 - net.link["d3"].DP
-p_12 = p_9 + net.link["ct6"].DP
-p_13 = p_12 + net.link["d6"].DP
-p_14 = p_13 + net.link["ct7"].DP
-p_15 = p_13 + net.link['ct8'].DP
-p_16 = p_15 + net.link["d7"].DP
-p_17 = p_14 + net.link["d8"].DP
+
+

@@ -17,17 +17,12 @@ import os
 import random
 
 
-system_linux = False
 
 
-if system_linux == False:
-    win_path = r'{}'.format(str(os.path.dirname(__file__)))
-    loss_path = pathlib.PurePath(str(win_path),'loss_in_devices')
-    path_example = str(pathlib.PurePath(str(win_path), 'loss_in_devices', 'conexao_t_zetaLinha1_cs.xlsx'))
-    #print(path_example)
 
-if system_linux == True:
-    pass
+win_path = r'{}'.format(str(os.path.dirname(__file__)))
+loss_path = pathlib.PurePath(str(win_path),'loss_in_devices')
+path_example = str(pathlib.PurePath(str(win_path), 'loss_in_devices', 'conexao_t_zetaLinha1_cs.xlsx'))
 
 
 # from UnitConv import UnitConv as uc
@@ -42,12 +37,19 @@ class Link():
         self.Set_a()
 
     def Set_Dynamic(self):
-        self.U = self.m / (self.A_r * self.rho)
+        try:
+            self.U = self.m_extra / (self.A_r * self.rho)
+        except AttributeError:
+            self.U = self.m / (self.A_r * self.rho)
+
         self.p_d = self.rho * self.U ** 2 / 2
         self.DP = self.zeta * self.p_d
 
     def Set_a(self):
-        self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + 1 / self.A_o ** 2 - 1 / self.A_i ** 2))
+        try:
+            self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + (self.m_extra/self.m)/self.A_o ** 2 - 1 / self.A_i ** 2))
+        except AttributeError:
+            self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + 1/self.A_o ** 2 - 1 / self.A_i ** 2))
 
 
 
@@ -69,7 +71,7 @@ class Net():
         self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
 
         # ATRIBUIR VALORES GUESS PARA M E P
-        self.Set_Guess_Values()
+        #self.Set_Guess_Values()
         self.DictLink()
 
         # IDENTIFICAR DISPOSITIVOS E ADICIONAR SEUS RESPECTIVOS PARAMETROS
@@ -336,16 +338,17 @@ class Tubo(Link):
         interp = interp1d(self.df.index, self.df['lambda'].values)
         if Re <= 2000:
             return 64 / Re
-        if (Re > 2000 and Re <= 4000):
+        if (Re > 2000) and (Re <= 4000):
             return float(interp(Re))
-        if (Re > 4000 and Re < 100000):
+        if (Re > 4000) and (Re < 100000):
             return 0.3164 / (Re ** 0.25)
         if Re >= 100000:
             return 1 / ((1.8 * np.log10(Re) - 1.64) ** 2)
 
     def Set_Zeta(self):
-        Re = round(self.U * self.D / self.nu)
-        lambdaValue = float(self.lambda_(Re))
+        self.U = self.m / (self.A_r * self.rho)
+        self.Re = round(self.U * self.D / self.nu)
+        lambdaValue = float(self.lambda_(self.Re))
         self.zeta = lambdaValue * (self.l / self.D)
 
 class Difusor(Link):
@@ -496,6 +499,7 @@ class Conexao_T(Link):
         self.R_A = self.A_s / self.A_c
 
         if self.Merging:
+            self.U = self.U_c
             self.A = self.A_parameter(self.A_s, self.A_c, self.Qs, self.Qc)    # usado para JUNÇÃO sem partição
             self.Merging_func2 = self.A * (1 + (self.A_c / self.A_s) ** 2 + 3 * (self.A_c / self.A_s) ** 2 * ((self.R_Q) ** 2 - self.R_Q)) # usado para JUNÇÃO sem partição
 
