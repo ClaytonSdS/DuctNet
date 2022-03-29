@@ -47,7 +47,7 @@ class Link():
 
     def Set_a(self):
         try:
-            self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + (self.m_extra/self.m)/self.A_o ** 2 - 1 / self.A_i ** 2))
+            self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + (self.m_extra/self.m)/self.A_o ** 2 - 1/ self.A_i ** 2))
         except AttributeError:
             self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + 1/self.A_o ** 2 - 1 / self.A_i ** 2))
 

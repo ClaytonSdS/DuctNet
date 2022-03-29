@@ -5,7 +5,7 @@ p_2 = p_3 + net.link["ct1"].DP + (net.link["ct1"].m_extra/net.link["ct1"].A_o)**
 p_1 = p_2 + net.link["d1"].DP
 p_0 = p_1 + net.link["d0"].DP
 
-p_6 = p_3 + net.link["ct1"].DP + (net.link["ct2"].m_extra/net.link["ct2"].A_o)**2/2e3 - (net.link["ct2"].m/net.link["ct2"].A_i)**2/2e3
+p_6 = p_3 + net.link["ct2"].DP + (net.link["ct2"].m_extra/net.link["ct2"].A_o)**2/2  - (net.link["ct2"].m/net.link["ct2"].A_i)**2/2e3
 p_7 = p_6 + net.link["ct2"].DP
 
 p_4 = p_3 - net.link["d2"].DP
@@ -15,26 +15,26 @@ p_5 = p_4 - net.link["d3"].DP
 
 
 
+* CORREÇÃO*
+p_2 = p_3 + net.link["ct1"].DP + ((net.link["ct1"].m_extra/(net.link["ct1"].A_o*net.link["ct1"].rho))**2)*1e3/2 - ((net.link["ct1"].m/(net.link["ct1"].A_i*net.link["ct1"].rho))**2)*1e3/2
+
+
+
+
+
 p_0
-Out[463]: 1572.5839396289891
+Out[16]: 2280.5076846289894
 p_1
-Out[464]: 1384.6270374523717
+Out[17]: 2092.550782452372
 p_2
-Out[465]: 1196.6701352757543
+Out[18]: 1904.5938802757546
 p_3
-Out[466]: 0
+Out[19]: 707.923745
 p_4
-Out[467]: -653.5181428500531
+Out[20]: 54.40560214994696
 p_5
-Out[468]: -1307.0362857001062
+Out[21]: -599.1125407001061
 p_6
-Out[469]: 1196.6701352757543
+Out[22]: 1904.5938802757546
 p_7
-Out[470]: 1768.990634755463
-
-
-
-net.link["ct1"].zeta
-Out[514]: 0.6875
-net.link["ct2"].zeta
-Out[515]: 0.6875
+Out[23]: 2476.9143797554634
