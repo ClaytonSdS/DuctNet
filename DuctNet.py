@@ -47,11 +47,20 @@ class Link():
 
     def Set_a(self):
         try:
-            self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + (self.m_extra/self.m)/self.A_o ** 2 - 1/ self.A_i ** 2))
+            # VALOR DEFAULT - ANTES DE TUDO
+            #self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + (self.m_extra/self.m)/self.A_o ** 2 - 1/ self.A_i ** 2))
+
+            if self.Merging:
+                Ar_dot = self.A_o * (self.m / self.m_extra)
+                Ao_dot = self.A_o * (self.m / self.m_extra)
+                self.a = 1 / ((self.m/ (2 * self.rho)) * (self.zeta/Ar_dot**2 + 1/Ao_dot**2 - 1/ self.A_i**2))
+
+            if not self.Merging:
+                print('divisao')
+
+
         except AttributeError:
             self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + 1/self.A_o ** 2 - 1 / self.A_i ** 2))
-
-
 
 class Node():
     def __init__(self, p):
@@ -66,6 +75,7 @@ class Net():
         self.node = pd.read_csv(fnode, sep='|', index_col='idx')
         self.dflink = pd.read_csv(flink, sep='|', index_col='idx')
         self.connect = pd.read_csv(fconnect, sep='|', index_col='lk')
+
         # NÓS DE CONTORNO E NÓS DE BALANÇO DE MASSA (VARIAVEIS)
         self.node_variable = list(set(self.connect['from'].values).intersection(self.connect['to'].values))
         self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
@@ -80,6 +90,7 @@ class Net():
         self.merging_links = []
         self.dividing_links = []
         # ADICIONAR M_EXTRA SE LEN > 1:
+
 
         # CASO DE JUNÇÃO
         for x in range(len(self.node.index.values)):
@@ -238,22 +249,17 @@ class Net():
             no = self.node.index.values[x]
             if len(self.connect.loc[self.connect['to'] == no].index.values) > 1:
                 self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
-
+                # pegar qc net.dflink.loc[net.connect.loc[net.connect['to'] == 3].index.values]
     def Set_Guess_Values(self):
         p_guess_max = self.node.loc[self.node_boundary].values.max()
         p_guess_min = self.node.loc[self.node_boundary].values.min()
         self.node.loc[self.node_variable] = 0.95*(p_guess_max+p_guess_min)/2
         self.dflink['m'] = 15
 
-        #for node in range(len(self.node_variable)):
-           #self.node.loc[self.node.index[self.node_variable[node]]] = self.p_guess_max
-
-        #for ligacao in range(len(self.dflink['m'].index)):
-            #self.dflink.loc[self.dflink['m'].index[ligacao],"m"] = random.uniform(10.5, 15.5)
-
     def Start_Iteration(self, iterations):
-        self.alpha_p = 0.2
-        self.alpha_m = 0.2
+        # usado alpha = 0.2
+        self.alpha_p = 0.3
+        self.alpha_m = 0.3
 
         self.plot_pressure = []
         self.plot_mass = []
@@ -278,20 +284,29 @@ class Net():
             self.mass_dot = {ligacoes[index]: self.link[ligacoes[index]].m for index in range(len(ligacoes))}
             self.delta_m = {ligacoes[index]: self.mass_line[ligacoes[index]] - self.mass_dot[ligacoes[index]] for index in range(len(ligacoes))}
 
-            # ATUALIZAR VAZÕES MASSICAS
+
+            # ATUALIZAR VAZÕES MASSICAS NAS LIGAÇÕES E NO DATAFRAME DFLINK
             for link_index in range(len(self.connect.index.values)):
                 _ligacao_ = self.connect.index.values[link_index]
                 self.link[_ligacao_].m = self.link[_ligacao_].m + self.alpha_m * self.delta_m[_ligacao_]
                 self.dflink.loc[_ligacao_, "m"] = self.link[_ligacao_].m
 
-            # CALCULAR NOVAS VAZOES EXTRAS
+            # CALCULAR NOVAS VAZOES EXTRAS E ALTERAR NO DATAFRAME
             self.Refresh_M_Extra()
 
-            # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS PARAMETROS DA CONEXÃO T
+            # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS PARAMETROS DA CONEXÃO T - PARA JUNÇÃO DE FLUXO
             for conexao_t in range(len(self.merging_links)):
                 _ligacao_ = self.merging_links[conexao_t]
                 self.link[_ligacao_].m_extra = self.dflink.loc[_ligacao_, "m_extra"]
+
+                # NOVIDADE --------------------------
+                # ATUALIZA TAMBEM AGORA M_LINE PARA LIGAÇÕES DO TIPO CT
+                self.link[_ligacao_].m_line = self.mass_line[_ligacao_]
+                self.link[_ligacao_].m_dot = self.mass_dot[_ligacao_]
+                #------------------------------------
+
                 self.link[_ligacao_].Set_Parameters()
+
 
             # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS VALORES DE ZETA E a
             for link_index in range(len(self.connect.index.values)):
@@ -304,7 +319,7 @@ class Net():
 
             # CRIAR AS MATRIX DO SOLVER
             self.matrix_a = self.mass_balance[:].loc[self.node_variable].values
-            self.Add_Pressure_in_Nodes_Boundary()  # ADICIONAR PRESSAO AOS TERMOS DE CONTORNO
+            self.Add_Pressure_in_Nodes_Boundary()  # ADICIONAR PRESSAO AOS TERMOS DE CONTORNO PARA FICAR a_n * p_n
             self.matrix_b = self.mass_balance[:].loc[self.node_boundary].cumsum().values[-1] * -1
             self.result = {self.node_variable[i]: np.linalg.solve(self.matrix_a, self.matrix_b)[i] for i in range(len(self.node_variable))}
 
@@ -435,6 +450,8 @@ class Conexao_T(Link):
         self.Merging = Merging
         self.Zeta_cs = Zeta_cs
         self.m_extra = m_extra
+        self.m_line = m
+        self.m_dot = m
 
         # CONDIÇÕES PARA PARTIÇÃO
         self.Partition = Partition
@@ -452,8 +469,8 @@ class Conexao_T(Link):
         self.df_K1 = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'conexao_t_df_k1.xlsx'),skiprows=1, engine='openpyxl').set_index('Qs/Qc')
         self.interp_k1 = interp1d(self.df_K1.index, self.df_K1[90])
 
-        self.A_s = self.A_r
-        self.A_c = self.A_i
+        self.A_s = self.A_i
+        self.A_c = self.A_r
 
         self.Set_Parameters()
         self.Set_Zeta()
@@ -487,7 +504,13 @@ class Conexao_T(Link):
         else:
             print('Nao existe dados de Juncao com Particao para Fs/Fc = {}'.format(Fs / Fc))
 
+    # self.link[_ligacao_].Set_Parameters()
+    # self.link[_ligacao_].Set_Zeta()
+    # self.link[_ligacao_].Set_a()
+
     def Set_Parameters(self):
+
+        #print(self.m_extra, self.m_line, self.m)
 
         self.Qs = self.m / self.rho
         self.Qc = self.m_extra / self.rho
@@ -496,12 +519,12 @@ class Conexao_T(Link):
         self.U_c = self.Qc / self.A_c
 
         self.R_Q = self.Qs/self.Qc
-        self.R_A = self.A_s / self.A_c
+        self.R_A = self.A_c / self.A_s
 
         if self.Merging:
-            self.U = self.U_c
             self.A = self.A_parameter(self.A_s, self.A_c, self.Qs, self.Qc)    # usado para JUNÇÃO sem partição
-            self.Merging_func2 = self.A * (1 + (self.A_c / self.A_s) ** 2 + 3 * (self.A_c / self.A_s) ** 2 * ((self.R_Q) ** 2 - self.R_Q)) # usado para JUNÇÃO sem partição
+            #self.Merging_func2 = self.A * (1 + (self.R_A)**2 + 3*(self.R_A)**2 * ((self.R_Q)** 2 - self.R_Q)) # usado para JUNÇÃO sem partição
+            self.Merging_func2 = (1 + (self.R_A) ** 2 + 3 * (self.R_A) ** 2 * ((self.R_Q) ** 2 - self.R_Q))  # usado para JUNÇÃO sem partição
 
         if not self.Merging:
             self.k_1 = self.k1_parameter(self.A_s, self.A_c, self.Qs, self.Qc)  # usado para DIVISÃO sem partição
