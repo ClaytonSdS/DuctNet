@@ -38,7 +38,10 @@ class Link():
 
     def Set_Dynamic(self):
         try:
-            self.U = self.m_extra / (self.A_r * self.rho)
+            if self.Merging:
+                self.U = self.m_extra / (self.A_r * self.rho)
+            if not self.Merging:
+                self.U = self.m_extra / (self.A_r*self.rho)
         except AttributeError:
             self.U = self.m / (self.A_r * self.rho)
 
@@ -47,17 +50,16 @@ class Link():
 
     def Set_a(self):
         try:
-            # VALOR DEFAULT - ANTES DE TUDO
-            #self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + (self.m_extra/self.m)/self.A_o ** 2 - 1/ self.A_i ** 2))
-
             if self.Merging:
                 Ar_dot = self.A_o * (self.m / self.m_extra)
                 Ao_dot = self.A_o * (self.m / self.m_extra)
                 self.a = 1 / ((self.m/ (2 * self.rho)) * (self.zeta/Ar_dot**2 + 1/Ao_dot**2 - 1/ self.A_i**2))
 
             if not self.Merging:
-                print('divisao')
-
+                Ar_dot = self.A_o * (self.m / (self.m_extra))
+                Ai_dot = self.A_i * (self.m / (self.m_extra))
+                #Ai_dot = self.A_i * (self.m / (self.m_extra - self.m))
+                self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta/Ar_dot**2 + 1/self.A_o**2 - 1/Ai_dot**2))
 
         except AttributeError:
             self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta / self.A_r ** 2 + 1/self.A_o ** 2 - 1 / self.A_i ** 2))
@@ -81,33 +83,50 @@ class Net():
         self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
 
         # ATRIBUIR VALORES GUESS PARA M E P
-        #self.Set_Guess_Values()
+        self.Set_Guess_Values()
         self.DictLink()
 
         # IDENTIFICAR DISPOSITIVOS E ADICIONAR SEUS RESPECTIVOS PARAMETROS
         self.Identify_Device_Type()
 
         self.merging_links = []
-        self.dividing_links = []
+        self.division_links = []
         # ADICIONAR M_EXTRA SE LEN > 1:
-
 
         # CASO DE JUNÇÃO
         for x in range(len(self.node.index.values)):
             no = self.node.index.values[x]
+            # JUNCAO
             if len(self.connect.loc[self.connect['to']==no].index.values) > 1:
                 self.addList_Merging(list(self.connect.loc[self.connect['to']==no].index.values))
+            # DIVISAO
+            if len(self.connect.loc[self.connect['from']==no].index.values) > 1:
+                self.addList_Division(list(self.connect.loc[self.connect['from']==no].index.values))
 
         # ATUALIZAR INFORMAÇÕES DE MERGING
         for juncao in range(len(self.merging_links)):
             self.link[self.merging_links[juncao]].Merging = True
 
+        for divisao in range(len(self.division_links)):
+            _divisao_ = self.division_links[divisao]
+            self.link[self.division_links[divisao]].Merging = False
+            self.link[_divisao_].Qc = self.link[_divisao_].m*2/(self.link[_divisao_].rho)
+            self.link[_divisao_].Qs = self.link[_divisao_].m/ (self.link[_divisao_].rho)
+            self.link[_divisao_].Set_Parameters()
+            self.link[_divisao_].Set_Zeta()
+
         # CALCULAR VAZOES EXTRAS
         self.Refresh_M_Extra()
 
-        # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS PARAMETROS DA CONEXÃO T
+        # ATIVAR PARAMETROS PARA JUNÇÃO
         for conexao_t in range(len(self.merging_links)):
             _ligacao_ = self.merging_links[conexao_t]
+            self.link[_ligacao_].m_extra = self.dflink.loc[_ligacao_, "m_extra"]
+            self.link[_ligacao_].Set_Parameters()
+
+        # ATIVAR PARAMETROS PARA DIVISAO
+        for divisao in range(len(self.division_links)):
+            _ligacao_ = self.division_links[divisao]
             self.link[_ligacao_].m_extra = self.dflink.loc[_ligacao_, "m_extra"]
             self.link[_ligacao_].Set_Parameters()
 
@@ -145,6 +164,11 @@ class Net():
         for x in range(len(lista)):
             if not lista[x] in self.merging_links:
                 self.merging_links.append(lista[x])
+
+    def addList_Division(self, lista):
+        for x in range(len(lista)):
+            if not lista[x] in self.division_links:
+                self.division_links.append(lista[x])
 
     # SEPARAR FLUXOS CHEGANDO E SAINDO DE NÓS (IN, OUT)
     def Set_In_Out(self, no):
@@ -247,19 +271,26 @@ class Net():
     def Refresh_M_Extra(self):
         for x in range(len(self.node.index.values)):
             no = self.node.index.values[x]
+            # JUNÇÃO
             if len(self.connect.loc[self.connect['to'] == no].index.values) > 1:
                 self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m_extra"] = self.dflink.loc[self.connect.loc[self.connect['to'] == no].index.values, "m"].sum()
+
+            # DIVISÃO
+            if len(self.connect.loc[self.connect['from'] == no].index.values) > 1:
+                self.dflink.loc[self.connect.loc[self.connect['from'] == no].index.values, "m_extra"] = (self.dflink.loc[self.connect.loc[self.connect['from'] == no].index.values, "m"].sum())
                 # pegar qc net.dflink.loc[net.connect.loc[net.connect['to'] == 3].index.values]
+
     def Set_Guess_Values(self):
-        p_guess_max = self.node.loc[self.node_boundary].values.max()
-        p_guess_min = self.node.loc[self.node_boundary].values.min()
-        self.node.loc[self.node_variable] = 0.95*(p_guess_max+p_guess_min)/2
-        self.dflink['m'] = 15
+        #p_guess_max = self.node.loc[self.node_boundary].values.max()
+        #p_guess_min = self.node.loc[self.node_boundary].values.min()
+        #self.node.loc[self.node_variable] = 0.95*(p_guess_max+p_guess_min)/2
+        self.dflink['m'] = 1
+
 
     def Start_Iteration(self, iterations):
-        # usado alpha = 0.2
-        self.alpha_p = 0.3
-        self.alpha_m = 0.3
+        # iterações recomendadas: 500~600
+        self.alpha_p = 0.2
+        self.alpha_m = 0.2
 
         self.plot_pressure = []
         self.plot_mass = []
@@ -295,18 +326,18 @@ class Net():
             self.Refresh_M_Extra()
 
             # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS PARAMETROS DA CONEXÃO T - PARA JUNÇÃO DE FLUXO
-            for conexao_t in range(len(self.merging_links)):
-                _ligacao_ = self.merging_links[conexao_t]
+            for juncao in range(len(self.merging_links)):
+                _ligacao_ = self.merging_links[juncao]
                 self.link[_ligacao_].m_extra = self.dflink.loc[_ligacao_, "m_extra"]
-
-                # NOVIDADE --------------------------
-                # ATUALIZA TAMBEM AGORA M_LINE PARA LIGAÇÕES DO TIPO CT
                 self.link[_ligacao_].m_line = self.mass_line[_ligacao_]
                 self.link[_ligacao_].m_dot = self.mass_dot[_ligacao_]
-                #------------------------------------
-
                 self.link[_ligacao_].Set_Parameters()
 
+            # ATIVAR PARAMETROS PARA DIVISAO
+            for divisao in range(len(self.division_links)):
+                _ligacao_ = self.division_links[divisao]
+                self.link[_ligacao_].m_extra = self.dflink.loc[_ligacao_, "m_extra"]
+                self.link[_ligacao_].Set_Parameters()
 
             # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS VALORES DE ZETA E a
             for link_index in range(len(self.connect.index.values)):
@@ -472,11 +503,17 @@ class Conexao_T(Link):
         self.A_s = self.A_i
         self.A_c = self.A_r
 
+        if not self.Merging:
+            self.U_c = 2*self.m/(self.rho)
+            self.U_s = self.m/self.rho
+
         self.Set_Parameters()
         self.Set_Zeta()
         self.Set_a()
 
     def k1_parameter(self, Fs, Fc, Qs, Qc):
+        Qs = abs(Qs)
+        Qc = abs(Qc)
         if Fs / Fc <= 1:
             return float(self.interp_k1(Qs/Qc))
         if Fs / Fc > 1:
@@ -504,31 +541,33 @@ class Conexao_T(Link):
         else:
             print('Nao existe dados de Juncao com Particao para Fs/Fc = {}'.format(Fs / Fc))
 
-    # self.link[_ligacao_].Set_Parameters()
-    # self.link[_ligacao_].Set_Zeta()
-    # self.link[_ligacao_].Set_a()
-
     def Set_Parameters(self):
 
-        #print(self.m_extra, self.m_line, self.m)
-
-        self.Qs = self.m / self.rho
-        self.Qc = self.m_extra / self.rho
-
-        self.U_s = self.Qs / self.A_s
-        self.U_c = self.Qc / self.A_c
-
-        self.R_Q = self.Qs/self.Qc
-        self.R_A = self.A_c / self.A_s
-
         if self.Merging:
+            self.Qs = self.m / self.rho
+            self.Qc = self.m_extra / self.rho
+
+            self.U_s = self.Qs / self.A_s
+            self.U_c = self.Qc / self.A_c
+
+            self.R_Q = self.Qs / self.Qc
+            self.R_A = self.A_c / self.A_s
+
             self.A = self.A_parameter(self.A_s, self.A_c, self.Qs, self.Qc)    # usado para JUNÇÃO sem partição
             #self.Merging_func2 = self.A * (1 + (self.R_A)**2 + 3*(self.R_A)**2 * ((self.R_Q)** 2 - self.R_Q)) # usado para JUNÇÃO sem partição
             self.Merging_func2 = (1 + (self.R_A) ** 2 + 3 * (self.R_A) ** 2 * ((self.R_Q) ** 2 - self.R_Q))  # usado para JUNÇÃO sem partição
 
         if not self.Merging:
+            self.Qs = self.m / self.rho
+            self.Qc = self.m_extra / self.rho
+
+            self.U_s = self.Qs / self.A_s
+            self.U_c = self.Qc / self.A_c
+
             self.k_1 = self.k1_parameter(self.A_s, self.A_c, self.Qs, self.Qc)  # usado para DIVISÃO sem partição
-            self.Dividing_func1 = 1 + self.k_1 * (self.U_s / self.U_c) ** 2  # usado para DIVISÃO sem partição
+            self.Dividing_func1 = 1 + self.k_1 * (self.U_s / self.U_c)**2
+
+            #self.Dividing_func1 = 1 + (self.U_s / self.U_c) ** 2  # usado para DIVISÃO sem partição
 
     def Set_Zeta(self):
         if self.Merging:
@@ -538,8 +577,8 @@ class Conexao_T(Link):
             self.zeta = VerifierPartition(self.Partition)
 
         if not self.Merging:
-            WithoutPartition_Zeta_cs = lambda Zeta_cs: self.Dividing_func1 if str(Zeta_cs) == 'Yes' else ConvertZeta_cs(self.A_s, self.A_c, self.Qs, self.Qc, Zeta_cs=self.Dividing_func1)
-            WithPartition_Zeta_cs = lambda Zeta_cs: print('Nao existe dados de Divisao com Particao.') if str(Zeta_cs) == 'Yes' else print('Nao existe dados de Divisao com Particao.')
-            VerifierPartition = lambda Partition: WithoutPartition_Zeta_cs(self.Zeta_cs) if str(
-                self.Partition) == 'No' else WithPartition_Zeta_cs(self.Zeta_cs)
-            self.zeta = VerifierPartition(self.Partition)
+            #WithoutPartition_Zeta_cs = lambda Zeta_cs: self.Dividing_func1 if str(Zeta_cs) == 'Yes' else ConvertZeta_cs(self.A_s, self.A_c, self.Qs, self.Qc, Zeta_cs=self.Dividing_func1)
+            #WithPartition_Zeta_cs = lambda Zeta_cs: print('') if str(Zeta_cs) == 'Yes' else print('')
+            #VerifierPartition = lambda Partition: WithoutPartition_Zeta_cs(self.Zeta_cs) if str(self.Partition) == 'No' else WithPartition_Zeta_cs(self.Zeta_cs)
+            #self.zeta = VerifierPartition(self.Partition)
+            self.zeta = self.Dividing_func1

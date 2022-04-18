@@ -1,0 +1,48 @@
+net.link["d0"].Set_Dynamic()
+net.link["d1"].Set_Dynamic()
+net.link["d2"].Set_Dynamic()
+net.link["d3"].Set_Dynamic()
+net.link["d4"].Set_Dynamic()
+net.link["d5"].Set_Dynamic()
+net.link["d6"].Set_Dynamic()
+net.link["ct1"].Set_Dynamic()
+net.link["ct2"].Set_Dynamic()
+net.link["ct3"].Set_Dynamic()
+net.link["ct4"].Set_Dynamic()
+
+p_0 = 0
+p_1 = p_0 + net.link["d0"].DP
+p_2 = p_1 + net.link["d1"].DP
+p_3 = p_2 + net.link["ct1"].DP + net.link["ct1"].m**2/(2*1e3*net.link["ct1"].A_i**2) - net.link["ct1"].m_extra**2/(2*1e3*net.link["ct1"].A_o**2)
+p_4 = p_3 - net.link["ct2"].DP + net.link["ct2"].m_extra**2/(2*1e3*net.link["ct2"].A_o**2) - net.link["ct2"].m**2/(2*1e3*net.link["ct2"].A_i**2)
+p_5 = p_4 - net.link["d4"].DP
+p_6 = p_5 - net.link["ct3"].DP + net.link["ct3"].m**2/(2*1e3*net.link["ct3"].A_i**2) - net.link["ct3"].m_extra**2/(2*1e3*net.link["ct3"].A_i**2)
+p_7 = p_6 + net.link["ct4"].DP + net.link["ct4"].m_extra**2/(2*1e3*net.link["ct4"].A_i**2) - net.link["ct4"].m**2/(2*1e3*net.link["ct4"].A_i**2)
+p_8 = p_7 + net.link["d5"].DP
+p_9 = p_6 - net.link["d6"].DP
+p_10 = p_3 + net.link["d2"].DP
+p_11 = p_10 + net.link["d3"].DP
+
+
+p_1
+Out[31]: 389.1563369055818
+p_2
+Out[32]: 778.3126738111636
+p_3
+Out[33]: 1902.1420182440468
+p_4
+Out[34]: 778.3126738111639
+p_5
+Out[35]: 389.1563369055821
+p_6
+Out[36]: -3356.9414778706932
+p_7
+Out[37]: 389.156336905582
+p_8
+Out[38]: 778.3126738111638
+p_9
+Out[39]: -4717.510076477242
+p_10
+Out[40]: 3262.7106168505957
+p_11
+Out[41]: 4623.279215457144
