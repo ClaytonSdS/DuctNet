@@ -58,7 +58,6 @@ class Link():
             if not self.Merging:
                 Ar_dot = self.A_o * (self.m / (self.m_extra))
                 Ai_dot = self.A_i * (self.m / (self.m_extra))
-                #Ai_dot = self.A_i * (self.m / (self.m_extra - self.m))
                 self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta/Ar_dot**2 + 1/self.A_o**2 - 1/Ai_dot**2))
 
         except AttributeError:
@@ -107,6 +106,7 @@ class Net():
         for juncao in range(len(self.merging_links)):
             self.link[self.merging_links[juncao]].Merging = True
 
+        # CASO DE DIVISÃO
         for divisao in range(len(self.division_links)):
             _divisao_ = self.division_links[divisao]
             self.link[self.division_links[divisao]].Merging = False
@@ -278,7 +278,7 @@ class Net():
             # DIVISÃO
             if len(self.connect.loc[self.connect['from'] == no].index.values) > 1:
                 self.dflink.loc[self.connect.loc[self.connect['from'] == no].index.values, "m_extra"] = (self.dflink.loc[self.connect.loc[self.connect['from'] == no].index.values, "m"].sum())
-                # pegar qc net.dflink.loc[net.connect.loc[net.connect['to'] == 3].index.values]
+
 
     def Set_Guess_Values(self):
         #p_guess_max = self.node.loc[self.node_boundary].values.max()
@@ -325,7 +325,7 @@ class Net():
             # CALCULAR NOVAS VAZOES EXTRAS E ALTERAR NO DATAFRAME
             self.Refresh_M_Extra()
 
-            # ATIVAR A FUNÇÃO PARA OS CALCULOS DOS PARAMETROS DA CONEXÃO T - PARA JUNÇÃO DE FLUXO
+            # ATIVAR PARAMETROS PARA JUNÇÃO
             for juncao in range(len(self.merging_links)):
                 _ligacao_ = self.merging_links[juncao]
                 self.link[_ligacao_].m_extra = self.dflink.loc[_ligacao_, "m_extra"]

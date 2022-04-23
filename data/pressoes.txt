@@ -1,113 +1,44 @@
 net.link["d0"].Set_Dynamic()
 net.link["d1"].Set_Dynamic()
 net.link["d2"].Set_Dynamic()
-net.link["d3"].Set_Dynamic()
-net.link["d4"].Set_Dynamic()
-net.link["d5"].Set_Dynamic()
-net.link["d6"].Set_Dynamic()
-net.link["d7"].Set_Dynamic()
-net.link["d8"].Set_Dynamic()
-net.link["d9"].Set_Dynamic()
-net.link["d10"].Set_Dynamic()
-net.link["d11"].Set_Dynamic()
-net.link["d12"].Set_Dynamic()
-net.link["d13"].Set_Dynamic()
-net.link["d14"].Set_Dynamic()
-net.link["d15"].Set_Dynamic()
-net.link["d16"].Set_Dynamic()
-net.link["d17"].Set_Dynamic()
-net.link["d18"].Set_Dynamic()
-net.link["d19"].Set_Dynamic()
-net.link["d20"].Set_Dynamic()
 net.link["ct1"].Set_Dynamic()
 net.link["ct2"].Set_Dynamic()
 net.link["ct3"].Set_Dynamic()
 net.link["ct4"].Set_Dynamic()
-net.link["ct5"].Set_Dynamic()
-net.link["ct6"].Set_Dynamic()
-net.link["ct7"].Set_Dynamic()
-net.link["ct8"].Set_Dynamic()
-net.link["ct9"].Set_Dynamic()
-net.link["ct10"].Set_Dynamic()
-net.link["ct11"].Set_Dynamic()
-net.link["ct12"].Set_Dynamic()
-net.link["ct13"].Set_Dynamic()
-net.link["ct14"].Set_Dynamic()
 
 p_0 = 0
-p_1 = p_0 - net.link["d3"].DP
-p_2 = p_1 - net.link["d2"].DP
-p_3 = p_2 - net.link["ct2"].DP + net.link["ct2"].m_extra**2/(2*1e3*net.link["ct2"].A_o**2) - net.link["ct2"].m**2/(2*1e3*net.link["ct2"].A_o**2)
-p_4 = p_3 - net.link["d4"].DP
-p_5 = p_4 - net.link["ct3"].DP + net.link["ct3"].m**2/(2*1e3*net.link["ct3"].A_o**2) - net.link["ct3"].m_extra**2/(2*1e3*net.link["ct3"].A_o**2)
-p_6 = p_5 + net.link["ct4"].DP + net.link["ct4"].m_extra**2/(2*1e3*net.link["ct4"].A_o**2) - net.link["ct4"].m**2/(2*1e3*net.link["ct4"].A_o**2)
-p_7 = p_6 + net.link["d5"].DP
-p_8 = p_5 - net.link["d6"].DP
-p_9 = p_2 - net.link["ct1"].DP + net.link["ct1"].m_extra**2/(2*1e3*net.link["ct1"].A_o**2) - net.link["ct1"].m**2/(2*1e3*net.link["ct1"].A_o**2)
-p_10 = p_9 - net.link["d1"].DP
-p_11 = p_10 - net.link["d0"].DP
-p_12 = p_11 - net.link["ct5"].DP + net.link["ct5"].m_extra**2/(2*1e3*net.link["ct5"].A_o**2) - net.link["ct5"].m**2/(2*1e3*net.link["ct5"].A_o**2)
-p_13 = p_12 - net.link["d8"].DP
-p_14 = p_13 - net.link["d9"].DP
-p_15 = p_14 - net.link["ct12"].DP + net.link["ct12"].m_extra**2/(2*1e3*net.link["ct12"].A_o**2) - net.link["ct12"].m**2/(2*1e3*net.link["ct12"].A_o**2)
-p_16 = p_14 - net.link["ct11"].DP + net.link["ct11"].m_extra**2/(2*1e3*net.link["ct11"].A_o**2) - net.link["ct11"].m**2/(2*1e3*net.link["ct11"].A_o**2)
-p_17 = p_16 - net.link["d10"].DP
-p_18 = p_17 - net.link["d11"].DP
-p_19 = p_18 - net.link["d12"].DP
-p_20 = p_11 - net.link["ct6"].DP + net.link["ct6"].m_extra**2/(2*1e3*net.link["ct6"].A_o**2) - net.link["ct6"].m**2/(2*1e3*net.link["ct6"].A_o**2)
-p_21 = p_20 - net.link["d7"].DP
-p_22 = p_21 - net.link["ct8"].DP + net.link["ct8"].m_extra**2/(2*1e3*net.link["ct8"].A_o**2) - net.link["ct8"].m**2/(2*1e3*net.link["ct8"].A_o**2)
-p_23 = p_22 - net.link["d20"].DP
-p_24 = p_21 - net.link["ct7"].DP + net.link["ct7"].m_extra**2/(2*1e3*net.link["ct7"].A_o**2) - net.link["ct7"].m**2/(2*1e3*net.link["ct7"].A_o**2)
-p_25 = p_24 - net.link["d13"].DP
-p_26 = p_25 - net.link["d14"].DP
-p_27 = p_26 - net.link["d15"].DP
-p_28 = p_27 - net.link["ct14"].DP + net.link["ct14"].m_extra**2/(2*1e3*net.link["ct14"].A_o**2) - net.link["ct14"].m**2/(2*1e3*net.link["ct14"].A_o**2)
-p_29 = p_28 - net.link["d16"].DP
-p_30 = p_27 - net.link["ct13"].DP + net.link["ct13"].m_extra**2/(2*1e3*net.link["ct13"].A_o**2) - net.link["ct13"].m**2/(2*1e3*net.link["ct13"].A_o**2)
-p_31 = p_30 - net.link["d17"].DP
-p_32 = p_31 - net.link["ct10"].DP + net.link["ct10"].m_extra**2/(2*1e3*net.link["ct10"].A_o**2) - net.link["ct10"].m**2/(2*1e3*net.link["ct10"].A_o**2)
-p_33 = p_32 - net.link["d18"].DP
-p_34 = p_31 - net.link["ct9"].DP + net.link["ct9"].m_extra**2/(2*1e3*net.link["ct9"].A_o**2) - net.link["ct9"].m**2/(2*1e3*net.link["ct9"].A_o**2)
-p_35 = p_34 - net.link["d19"].DP
+p_1 = p_0 - net.link["d0"].DP
+p_2 = p_1 + net.link["ct1"].m_extra**2/(2*1e3*net.link["ct1"].A_i**2) - net.link["ct1"].m**2/(2*1e3*net.link["ct1"].A_o**2) - net.link["ct1"].DP
+p_5 = p_1 + net.link["ct2"].m_extra**2/(2*1e3*net.link["ct2"].A_i**2) - net.link["ct2"].m**2/(2*1e3*net.link["ct2"].A_i**2) - net.link["ct2"].DP
+p_7 = p_5 - net.link["d1"].DP
+p_3 = p_2 - net.link["ct3"].DP + net.link["ct3"].m**2/(2*1e3*net.link["ct3"].A_i**2) - net.link["ct3"].m_extra**2/(2*1e3*net.link["ct3"].A_i**2)
+p_3_ = p_7 - net.link["ct4"].DP + net.link["ct4"].m**2/(2*1e3*net.link["ct4"].A_i**2) - net.link["ct4"].m_extra**2/(2*1e3*net.link["ct4"].A_i**2)
+#p_3 = (p_3+p_3_)/2
+p_4 = p_3 - net.link["d2"].DP
 
-p_all = []
-for x in range(36):
-    p_all.append(eval(f'p_{x}'))
 
-[0,
- -2293.207959062416,
- -4586.415918124832,
- -6584.334752672179,
- -7237.852895522232,
- -15926.718660350536,
- -7706.115122369267,
- -6728.0703095588715,
- -18767.539286305433,
- -6584.334752672179,
- -7237.852895522232,
- -7891.371038372285,
- -8390.850747009123,
- -8578.80764918574,
- -8766.764551362356,
- -8770.926882267662,
- -9162.914395274947,
- -9318.575167596775,
- -9474.235939918603,
- -9629.89671224043,
- -8390.850747009123,
- -8578.80764918574,
- -8703.677576344948,
- -8757.252100755593,
- -8703.677576344948,
- -8757.252100755593,
- -8810.826625166239,
- -8864.401149576885,
- -8895.618631366686,
- -8911.546363181484,
- -8895.618631366686,
- -8911.546363181484,
- -8927.161607718424,
- -8935.694166709229,
- -8914.121805429142,
- -8916.058762186743]
+p_0
+Out[35]: 0
+p_1
+Out[115]: -53.57452441064518
+p_2
+Out[116]: -116.03550255840791
+p_3
+Out[117]: -201.43406150576266
+p_4
+Out[118]: -255.00858591640784
+p_5
+Out[119]: -63.87629340127994
+p_7
+Out[120]: -70.3914133771548
+
+
+             m    A_r    A_i    A_o     rho  zeta    m_extra
+idx                                                         
+d0   10.107243  0.031  0.031  0.031  1000.0   0.5        NaN
+d2   10.107243  0.031  0.031  0.031  1000.0   0.5        NaN
+ct1   5.767744  0.031  0.031  0.031  1000.0   0.5  10.107243
+ct3   5.767744  0.031  0.031  0.031  1000.0   0.5  10.107243
+d1    4.339499  0.031  0.031  0.031  1000.0   0.5        NaN
+ct4   4.339499  0.031  0.031  0.031  1000.0   0.5  10.107243
+ct2   4.339499  0.031  0.031  0.031  1000.0   0.5  10.107243
