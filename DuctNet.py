@@ -56,7 +56,7 @@ class Link():
                 self.a = 1 / ((self.m/ (2 * self.rho)) * (self.zeta/Ar_dot**2 + 1/Ao_dot**2 - 1/ self.A_i**2))
 
             if not self.Merging:
-                Ar_dot = self.A_o * (self.m / (self.m_extra))
+                Ar_dot = self.A_i * (self.m / (self.m_extra))
                 Ai_dot = self.A_i * (self.m / (self.m_extra))
                 self.a = 1 / ((self.m / (2 * self.rho)) * (self.zeta/Ar_dot**2 + 1/self.A_o**2 - 1/Ai_dot**2))
 
@@ -287,10 +287,10 @@ class Net():
         self.dflink['m'] = 1
 
 
-    def Start_Iteration(self, iterations):
+    def Start_Iteration(self, iterations, alpha=0.2):
         # iterações recomendadas: 500~600
-        self.alpha_p = 0.2
-        self.alpha_m = 0.2
+        self.alpha_p = alpha
+        self.alpha_m = alpha
 
         self.plot_pressure = []
         self.plot_mass = []
