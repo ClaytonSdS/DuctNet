@@ -81,6 +81,8 @@ class Net():
         self.node_variable = list(set(self.connect['from'].values).intersection(self.connect['to'].values))
         self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
 
+        self.node_boundary = list(np.array(self.node_boundary)[~np.isnan(np.array(self.node_boundary))])  # remover nan values
+
         # ATRIBUIR VALORES GUESS PARA M E P
         self.Set_Guess_Values()
         self.DictLink()
@@ -146,10 +148,10 @@ class Net():
         self.Set_Mass_Balance()
 
         # CRIAR AS MATRIX DO SOLVER
-        self.matrix_a = self.mass_balance[:].loc[self.node_variable].values
-        self.Add_Pressure_in_Nodes_Boundary()   # ADICIONAR PRESSAO AOS TERMOS DE CONTORNO
-        self.matrix_b = self.mass_balance[:].loc[self.node_boundary].cumsum().values[-1] * -1
-        self.result = {self.node_variable[i]:np.linalg.solve(self.matrix_a,self.matrix_b)[i] for i in range(len(self.node_variable))}
+        #self.matrix_a = self.mass_balance[:].loc[self.node_variable].values
+        #self.Add_Pressure_in_Nodes_Boundary()   # ADICIONAR PRESSAO AOS TERMOS DE CONTORNO
+        #self.matrix_b = self.mass_balance[:].loc[self.node_boundary].cumsum().values[-1] * -1
+        #self.result = {self.node_variable[i]:np.linalg.solve(self.matrix_a,self.matrix_b)[i] for i in range(len(self.node_variable))}
 
     def DictLink(self):
         self.link = {ID: Link(self.dflink.loc[ID, 'm'],
