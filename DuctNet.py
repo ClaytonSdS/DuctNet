@@ -73,18 +73,25 @@ class Net():
         self.flink = flink
         self.fconnect = fconnect
 
+
+
         self.node = pd.read_csv(fnode, sep='|', index_col='idx')
         self.dflink = pd.read_csv(flink, sep='|', index_col='idx')
         self.connect = pd.read_csv(fconnect, sep='|', index_col='lk')
 
-        # NÓS DE CONTORNO E NÓS DE BALANÇO DE MASSA (VARIAVEIS)
-        self.node_variable = list(set(self.connect['from'].values).intersection(self.connect['to'].values))
-        self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
+        # NÓS VARIAVEIS (BALANÇO DE MASSA)
+        #self.node_variable = list(set(self.connect['from'].values).intersection(self.connect['to'].values))
+        self.node_variable = self.node.loc[self.node["Condicao_Contorno"]!=True].index
 
-        self.node_boundary = list(np.array(self.node_boundary)[~np.isnan(np.array(self.node_boundary))])  # remover nan values
+        # CONDIÇÕES DE CONTORNO DE PRESSÃO
+        #self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
+        self.node_boundary = self.node.loc[self.node["Condicao_Contorno"]==True].index
+
+        # CONDIÇÕES DE CONTORNO DE VAZÃO MASSICA
+        self.mass_boundary = self.dflink.loc[self.dflink["Condicao_Contorno"]==True].index
 
         # ATRIBUIR VALORES GUESS PARA M E P
-        self.Set_Guess_Values()
+        #self.Set_Guess_Values()
         self.DictLink()
 
         # IDENTIFICAR DISPOSITIVOS E ADICIONAR SEUS RESPECTIVOS PARAMETROS
@@ -92,8 +99,8 @@ class Net():
 
         self.merging_links = []
         self.division_links = []
-        # ADICIONAR M_EXTRA SE LEN > 1:
 
+        # ADICIONAR M_EXTRA SE LEN > 1:
         # CASO DE JUNÇÃO
         for x in range(len(self.node.index.values)):
             no = self.node.index.values[x]
@@ -121,8 +128,8 @@ class Net():
         self.Refresh_M_Extra()
 
         # ATIVAR PARAMETROS PARA JUNÇÃO
-        for conexao_t in range(len(self.merging_links)):
-            _ligacao_ = self.merging_links[conexao_t]
+        for juncao in range(len(self.merging_links)):
+            _ligacao_ = self.merging_links[juncao]
             self.link[_ligacao_].m_extra = self.dflink.loc[_ligacao_, "m_extra"]
             self.link[_ligacao_].Set_Parameters()
 
@@ -141,6 +148,8 @@ class Net():
         # COLOCAR AS LIGACOES ASSOCIADAS AOS NÓS VARIAVEIS
         self.links_in_nodes = {self.node_variable[node]: self.Set_In_Out(self.node_variable[node]) for node  in range(len(self.node_variable))}
 
+        self.Refresh_Px()
+
         # GERAR AS EQUAÇÕES PARA CADA LIGAÇÃO
         self.Set_Mass_Equations()
 
@@ -148,10 +157,10 @@ class Net():
         self.Set_Mass_Balance()
 
         # CRIAR AS MATRIX DO SOLVER
-        #self.matrix_a = self.mass_balance[:].loc[self.node_variable].values
-        #self.Add_Pressure_in_Nodes_Boundary()   # ADICIONAR PRESSAO AOS TERMOS DE CONTORNO
-        #self.matrix_b = self.mass_balance[:].loc[self.node_boundary].cumsum().values[-1] * -1
-        #self.result = {self.node_variable[i]:np.linalg.solve(self.matrix_a,self.matrix_b)[i] for i in range(len(self.node_variable))}
+        self.matrix_a = self.mass_balance[:].loc[self.node_variable].values
+        self.Add_Pressure_in_Nodes_Boundary()   # ADICIONAR PRESSAO AOS TERMOS DE CONTORNO
+        self.matrix_b = self.mass_balance[:].loc[self.node_boundary].cumsum().values[-1] * -1
+        self.result = {self.node_variable[i]:np.linalg.solve(self.matrix_a,self.matrix_b)[i] for i in range(len(self.node_variable))}
 
     def DictLink(self):
         self.link = {ID: Link(self.dflink.loc[ID, 'm'],
@@ -178,8 +187,8 @@ class Net():
 
     # FUNÇÃO PARA CALCULO DOS BALANÇO DE MASSAS NOS NÓS VARIAVEIS
     def Set_Mass_Balance(self):
-        nodes = self.node_variable + self.node_boundary
-        nodes.sort()
+        nodes = self.node.index
+
         self.mass_balance = pd.DataFrame({"node": nodes}).set_index("node")
 
         for node_index in range(len(self.node_variable)):
@@ -196,14 +205,16 @@ class Net():
     def Add_Pressure_in_Nodes_Boundary(self):
         for node_index in range(len(self.node_boundary)):
             _node_ = self.node_boundary[node_index]
-            _pressure_node_ = self.node.loc[_node_].values
+            _pressure_node_ = self.node.loc[_node_, "p"]
             _a_node_ = self.mass_balance.loc[_node_].values
             self.mass_balance.loc[_node_] = _a_node_ * _pressure_node_
 
     # FUNÇÃO PARA ASSOCIAR OS TERMOS a_n COM AS PRESSOES p_saida E p_from
     def Set_Mass_Equations(self):
-        nodes = self.node_variable+self.node_boundary
-        nodes.sort()
+
+        nodes = self.node.index
+        #nodes = self.node_variable
+
         self.equations = pd.DataFrame({"node": nodes}).set_index("node")
 
         # CRIAR COLUNAS COM OS NOMES DAS LIGAÇÕES E ATRIBUIR UM ARRAY DE ZEROS
@@ -261,12 +272,12 @@ class Net():
                                                                         length)
 
     def Set_M_Line_Equations(self):
-        nodes = self.node_variable + self.node_boundary
-        nodes.sort()
+        nodes = self.node.index
+
         self.m_line = self.equations[:]
         for node_index in range(len(self.node.index)):
             _node_ = self.node.index[node_index]
-            _pressure_node_ = self.node.loc[_node_].values
+            _pressure_node_ = self.node.loc[_node_, "p"]
             _a_node_ = self.m_line.loc[_node_].values
             self.m_line.loc[_node_] = _a_node_ * _pressure_node_
 
@@ -281,15 +292,42 @@ class Net():
             if len(self.connect.loc[self.connect['from'] == no].index.values) > 1:
                 self.dflink.loc[self.connect.loc[self.connect['from'] == no].index.values, "m_extra"] = (self.dflink.loc[self.connect.loc[self.connect['from'] == no].index.values, "m"].sum())
 
+    def Refresh_Px(self):
+        #K = self.dflink.loc["d0"].m / self.link["d0"].a
+
+        for x in range(len(self.mass_boundary)):
+            ligacao = self.mass_boundary[x]
+            node_right = self.connect.loc[ligacao]["to"]
+            node_left = self.connect.loc[ligacao]["from"]
+
+
+            # NÓ A ESQUERDA É FIXADO
+            if self.connect.loc[ligacao]["from"] in self.node_boundary:
+
+                K = self.link[ligacao].m  / self.link[ligacao].a
+                p1 = self.node.loc[node_right].values[0]
+
+                self.px = K + p1
+                self.node.loc[node_left, "p"] = self.px
+
+            # NÓ A DIREITA É FIXADO
+            if self.connect.loc[ligacao]["to"] in self.node_boundary:
+
+                K = self.link[ligacao].m / self.link[ligacao].a
+                p1 = self.node.loc[node_left].values[0]
+
+                #m4 = a4p6 - a4 px
+                #a4px = a4p6 - m4
+                #px = p6 - m4/a4
+
+                self.px =  p1 - K
+                self.node.loc[node_right, "p"] = self.px
 
     def Set_Guess_Values(self):
-        #p_guess_max = self.node.loc[self.node_boundary].values.max()
-        #p_guess_min = self.node.loc[self.node_boundary].values.min()
-        #self.node.loc[self.node_variable] = 0.95*(p_guess_max+p_guess_min)/2
         self.dflink['m'] = 1
 
 
-    def Start_Iteration(self, iterations, alpha=0.2):
+    def Start_Iteration(self, alpha=0.2, iterations=1000, tol=1e-3):
         # iterações recomendadas: 500~600
         self.alpha_p = alpha
         self.alpha_m = alpha
@@ -297,7 +335,10 @@ class Net():
         self.plot_pressure = []
         self.plot_mass = []
 
+        err = 0
+
         for x in range(iterations):
+            self.Refresh_Px()
 
             #print(f'{round((x+1)/iterations * 100,2)} %')
 
@@ -305,11 +346,17 @@ class Net():
             self.Set_M_Line_Equations()
 
             # ATUALIZAR OS VALORES DAS PRESSOES
-            self.shape = self.node.loc[self.node_variable].values.shape[0]
+            self.shape = self.node.loc[self.node_variable, "p"].shape[0]
             pressure_line = np.array(list(self.result.values()))
-            pressure_dot = self.node.loc[self.node_variable].values.reshape(-1)
+            pressure_dot = self.node.loc[self.node_variable, "p"].to_numpy().reshape(-1)
             delta_p = pressure_line - pressure_dot
-            self.node.loc[self.node_variable] = (pressure_dot + self.alpha_p * delta_p).reshape((self.shape, 1))
+
+
+
+            err = np.sqrt(sum([delta**2 for delta in delta_p])/len(delta_p))
+
+
+            self.node.loc[self.node_variable, "p"] = (pressure_dot + self.alpha_p * delta_p).reshape((self.shape, 1))
 
             # ATUALIZAR OS VALORES DAS VAZOES MASSICAS
             ligacoes = self.connect.index.values
@@ -357,14 +404,19 @@ class Net():
             self.result = {self.node_variable[i]: np.linalg.solve(self.matrix_a, self.matrix_b)[i] for i in range(len(self.node_variable))}
 
             # ARMAZENAR DADOS DAS ITERACOES DAS PRESSOES E DAS VAZOES
-            self.plot_pressure.append(list(self.node.loc[:].values.reshape(-1)))
+            self.plot_pressure.append(list(self.node.loc[:,"p"].values.reshape(-1)))
             self.plot_mass.append([self.link[self.connect.index.values[index]].m for index in range(len(self.connect.index.values))])
 
+            if err < tol:
+                break
+
+
+
         # DADOS PARA PLOTAGEM
-        self.pressure_df = pd.DataFrame(self.plot_pressure)
-        self.mass_df = pd.DataFrame(self.plot_mass)
-        self.pressure_df.columns = [f"p_{self.node.index.values[i]}" for i in range(len(self.node.index.values))]
-        self.mass_df.columns = self.connect.index.values
+        #self.pressure_df = pd.DataFrame(self.plot_pressure)
+        #self.mass_df = pd.DataFrame(self.plot_mass)
+        #self.pressure_df.columns = [f"p_{self.node.index.values[i]}" for i in range(len(self.node.index.values))]
+        #self.mass_df.columns = self.connect.index.values
 
 
 

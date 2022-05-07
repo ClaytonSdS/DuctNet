@@ -11,6 +11,6 @@ net = dn.Net(f'{file_path}\\node.inp',
             f'{file_path}\\link.inp',
              f'{file_path}\\connect.inp')
 
-net.Start_Iteration(600)
+net.Start_Iteration(iterations=1000, tol=1, alpha=0.4)
 
 
