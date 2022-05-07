@@ -50,6 +50,9 @@ class Link():
 
     def Set_a(self):
         try:
+            # CONEXÃO T NÃO SIMÉTRICA
+
+            # CONEXÃO T SIMÉTRICA
             if self.Merging:
                 Ar_dot = self.A_o * (self.m / self.m_extra)
                 Ao_dot = self.A_o * (self.m / self.m_extra)
@@ -101,7 +104,7 @@ class Net():
         self.division_links = []
 
         # ADICIONAR M_EXTRA SE LEN > 1:
-        # CASO DE JUNÇÃO
+        # CASO DE JUNÇÃO E DIVISÃO
         for x in range(len(self.node.index.values)):
             no = self.node.index.values[x]
             # JUNCAO
@@ -250,6 +253,15 @@ class Net():
             if type_device == 'ct':
                 juncao = "Yes"
                 referencia_zeta_cs = "Yes"
+
+                simetrico = self.connecs_t.loc[device, "Simetric"]
+
+                if simetrico != False and simetrico != True:
+                    simetrico = True
+
+                straight = self.connecs_t.loc[device, "Straight"]
+
+
                 self.link[self.connect.index.values[index]] = Conexao_T(self.link[device].m,
                                                                         self.link[device].m*2,
                                                                         self.link[device].A_r,
@@ -257,7 +269,7 @@ class Net():
                                                                         self.link[device].A_o,
                                                                         self.link[device].rho,
                                                                         self.link[device].zeta,
-                                                                        juncao, self.connecs_t.loc[self.connect.index.values[index]].values[0], referencia_zeta_cs)
+                                                                        juncao, self.connecs_t.loc[self.connect.index.values[index]].values[0], referencia_zeta_cs, simetrico, straight)
             # DEVICE == DIFUSOR
             if type_device == 'df':
                 angulo = float(input(f"[DIFUSOR] Digite o Valor do Ângulo do Difusor {device} [º]"))
@@ -529,11 +541,15 @@ class Difusor(Link):
             self.zeta = self.zeta_d * self.k_d
 
 class Conexao_T(Link):
-    def __init__(self, m, m_extra, A_r, A_i, A_o, rho, zeta, Merging, Partition, Zeta_cs):
+    def __init__(self, m, m_extra, A_r, A_i, A_o, rho, zeta, Merging, Partition, Zeta_cs, Simetric, Straight):
         Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
         self.mu = 1.12e-3
         self.Merging = Merging
         self.Zeta_cs = Zeta_cs
+
+        self.Simetric = Simetric
+        self.Straight = Straight
+
         self.m_extra = m_extra
         self.m_line = m
         self.m_dot = m
@@ -542,6 +558,7 @@ class Conexao_T(Link):
         self.Partition = Partition
         if Partition == True:
             self.partition = "Yes"
+
         if Partition == False:
             self.partition = "No"
 
@@ -553,6 +570,10 @@ class Conexao_T(Link):
 
         self.df_K1 = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'conexao_t_df_k1.xlsx'),skiprows=1, engine='openpyxl').set_index('Qs/Qc')
         self.interp_k1 = interp1d(self.df_K1.index, self.df_K1[90])
+
+        self.FatorZetaLinha = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'conexao_t_FatorZetaLinha.xlsx'), engine='openpyxl').set_index('ws/wc')
+        self.interp_FZL = interp1d(self.FatorZetaLinha.index, self.FatorZetaLinha[1])
+
 
         self.A_s = self.A_i
         self.A_c = self.A_r
@@ -592,47 +613,63 @@ class Conexao_T(Link):
         if Fs / Fc == 1:
             Merging_func1 = float(self.interp_graphA_2(self.Qs / self.Qc))
             return Merging_func1
+
         else:
             print('Nao existe dados de Juncao com Particao para Fs/Fc = {}'.format(Fs / Fc))
 
     def Set_Parameters(self):
+        self.Qs = self.m / self.rho
+        self.Qc = self.m_extra / self.rho
 
-        if self.Merging:
-            self.Qs = self.m / self.rho
-            self.Qc = self.m_extra / self.rho
+        self.U_s = self.Qs / self.A_s
+        self.U_c = self.Qc / self.A_c
 
-            self.U_s = self.Qs / self.A_s
-            self.U_c = self.Qc / self.A_c
+        self.R_Q = self.Qs / self.Qc
+        self.R_A = self.A_c / self.A_s
 
-            self.R_Q = self.Qs / self.Qc
-            self.R_A = self.A_c / self.A_s
 
+        #############################################################################
+        # CALCULO DOS PARAMETROS PARA CONEXÃO EM T - NÃO SIMÉTRICA
+        #############################################################################
+        # JUNÇÃO NÃO SIMÉTRICA - CALCULO DE ZETA NA PASSAGEM ESTREITA
+        if self.Merging and self.Simetric == False and self.Straight == True:
+            self.Merging_func4 = 1.55*self.R_Q - self.R_Q**2
+
+        # JUNÇÃO NÃO SIMÉTRICA - CALCULO DE ZETA NO TRECHO LATERAL
+        if self.Merging and self.Simetric == False and self.Straight == False:
+            self.A = self.A_parameter(self.A_s, self.A_c, self.Qs, self.Qc)
+            #self.Merging_func3 = self.A * (1 + (self.R_Q * self.R_A) ** 2 - 2 * (1 - self.R_A) ** 2)
+            self.Merging_func3 = (1 + (self.R_Q*self.R_A)**2 - 2 * (1-self.R_Q)**2)
+
+        # DIVISÃO NÃO SIMÉTRICA - CALCULO DE ZETA
+        if not self.Merging and self.Simetric == False:
+
+            # CALCULO PARA hs/hc <= 2/3
+            self.Dividing_func3 = 1 + (self.U_s/self.U_c)**2
+
+            # CALCULO PARA hs/hc = 1
+            self.Fator_Zeta_Linha = self.interp_FZL(self.U_s/self.U_c)
+            self.Dividing_func2 = self.Fator_Zeta_Linha * (1 + 0.3*(self.U_s/self.U_c)**2)
+
+        #############################################################################
+        # CALCULO DOS PARAMETROS PARA CONEXÃO EM T - SIMÉTRICA
+        #############################################################################
+        if self.Merging and self.Simetric == True:
             self.A = self.A_parameter(self.A_s, self.A_c, self.Qs, self.Qc)    # usado para JUNÇÃO sem partição
             #self.Merging_func2 = self.A * (1 + (self.R_A)**2 + 3*(self.R_A)**2 * ((self.R_Q)** 2 - self.R_Q)) # usado para JUNÇÃO sem partição
             self.Merging_func2 = (1 + (self.R_A) ** 2 + 3 * (self.R_A) ** 2 * ((self.R_Q) ** 2 - self.R_Q))  # usado para JUNÇÃO sem partição
 
-        if not self.Merging:
-            self.Qs = self.m / self.rho
-            self.Qc = self.m_extra / self.rho
-
-            self.U_s = self.Qs / self.A_s
-            self.U_c = self.Qc / self.A_c
-
+        if not self.Merging and self.Simetric == True :
             self.k_1 = self.k1_parameter(self.A_s, self.A_c, self.Qs, self.Qc)  # usado para DIVISÃO sem partição
             self.Dividing_func1 = 1 + self.k_1 * (self.U_s / self.U_c)**2
-
             #self.Dividing_func1 = 1 + (self.U_s / self.U_c) ** 2  # usado para DIVISÃO sem partição
 
     def Set_Zeta(self):
         if self.Merging:
-            WithPartition_Zeta_cs = lambda Zeta_cs: self.Verificador(self.A_s, self.A_c) if str(self.Zeta_cs) == 'Yes' else self.ConvertZeta_cs(self.A_s, self.A_c, self.Qs, self.Qc,Zeta_cs=self.Verificador(self.A_s, self.A_c))
-            WithoutPartition_Zeta_cs = lambda Zeta_cs: self.Merging_func2 if str(self.Zeta_cs) == 'Yes' else self.ConvertZeta_cs(self.A_s, self.A_c, self.Qs, self.Qc,Zeta_cs=self.Merging_func2)
-            VerifierPartition = lambda Partition: WithPartition_Zeta_cs(self.Zeta_cs) if str(self.Partition) == 'Yes' else WithoutPartition_Zeta_cs(self.Zeta_cs)
+            WithPartition = self.Verificador(self.A_s, self.A_c)
+            WithoutPartition = self.Merging_func2
+            VerifierPartition = lambda Partition: WithPartition if str(self.Partition) == 'Yes' else WithoutPartition
             self.zeta = VerifierPartition(self.Partition)
 
         if not self.Merging:
-            #WithoutPartition_Zeta_cs = lambda Zeta_cs: self.Dividing_func1 if str(Zeta_cs) == 'Yes' else ConvertZeta_cs(self.A_s, self.A_c, self.Qs, self.Qc, Zeta_cs=self.Dividing_func1)
-            #WithPartition_Zeta_cs = lambda Zeta_cs: print('') if str(Zeta_cs) == 'Yes' else print('')
-            #VerifierPartition = lambda Partition: WithoutPartition_Zeta_cs(self.Zeta_cs) if str(self.Partition) == 'No' else WithPartition_Zeta_cs(self.Zeta_cs)
-            #self.zeta = VerifierPartition(self.Partition)
             self.zeta = self.Dividing_func1
