@@ -71,11 +71,18 @@ class Node():
         self.p = p
 
 class Net():
-    def __init__(self, fnode, flink, fconnect):
+    def __init__(self, fnode, flink, fconnect, pipes, pipes_c, diffusers, tees, reductions, ball_valves, cotovelos_abruptos, placas_orificios):
         self.fnode = fnode
         self.flink = flink
         self.fconnect = fconnect
-
+        self.ALL_pipes = pipes
+        self.ALL_diffusers = diffusers
+        self.ALL_tees = tees
+        self.ALL_pipes_corrugated = pipes_c
+        self.ALL_reductions = reductions
+        self.ALL_ballvalves = ball_valves
+        self.ALL_cotovelosabruptos = cotovelos_abruptos
+        self.ALL_placasorificios = placas_orificios
 
 
         self.node = pd.read_csv(fnode, sep='|', index_col='idx')
@@ -86,20 +93,21 @@ class Net():
         #self.node_variable = list(set(self.connect['from'].values).intersection(self.connect['to'].values))
         self.node_variable = self.node.loc[self.node["Condicao_Contorno"]!=True].index
 
+        # CONDIÇÕES DE CONTORNO DE VAZÃO MASSICA
+        self.mass_boundary = self.dflink.loc[self.dflink["Condicao_Contorno"] == True].index
+        self.MassBoundary_Analyser()
+
         # CONDIÇÕES DE CONTORNO DE PRESSÃO
-        #self.node_boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
         self.node_boundary = self.node.loc[self.node["Condicao_Contorno"]==True].index
 
-        # CONDIÇÕES DE CONTORNO DE VAZÃO MASSICA
-        self.mass_boundary = self.dflink.loc[self.dflink["Condicao_Contorno"]==True].index
 
         # ATRIBUIR VALORES GUESS PARA M E P
-        #self.Set_Guess_Values()
         self.DictLink()
 
         # IDENTIFICAR DISPOSITIVOS E ADICIONAR SEUS RESPECTIVOS PARAMETROS
         self.Identify_Device_Type()
 
+        # CRIAÇÃO DE LISTAS VAZIAS PARA COLOCAR LIGAÇÕES DE JUNÇÕES E DIVISÕES
         self.merging_links = []
         self.division_links = []
 
@@ -118,6 +126,7 @@ class Net():
         for juncao in range(len(self.merging_links)):
             self.link[self.merging_links[juncao]].Merging = True
 
+
         # CASO DE DIVISÃO
         for divisao in range(len(self.division_links)):
             _divisao_ = self.division_links[divisao]
@@ -129,6 +138,7 @@ class Net():
 
         # CALCULAR VAZOES EXTRAS
         self.Refresh_M_Extra()
+
 
         # ATIVAR PARAMETROS PARA JUNÇÃO
         for juncao in range(len(self.merging_links)):
@@ -163,6 +173,7 @@ class Net():
         self.matrix_a = self.mass_balance[:].loc[self.node_variable].values
         self.Add_Pressure_in_Nodes_Boundary()   # ADICIONAR PRESSAO AOS TERMOS DE CONTORNO
         self.matrix_b = self.mass_balance[:].loc[self.node_boundary].cumsum().values[-1] * -1
+
         self.result = {self.node_variable[i]:np.linalg.solve(self.matrix_a,self.matrix_b)[i] for i in range(len(self.node_variable))}
 
     def DictLink(self):
@@ -191,7 +202,6 @@ class Net():
     # FUNÇÃO PARA CALCULO DOS BALANÇO DE MASSAS NOS NÓS VARIAVEIS
     def Set_Mass_Balance(self):
         nodes = self.node.index
-
         self.mass_balance = pd.DataFrame({"node": nodes}).set_index("node")
 
         for node_index in range(len(self.node_variable)):
@@ -214,10 +224,7 @@ class Net():
 
     # FUNÇÃO PARA ASSOCIAR OS TERMOS a_n COM AS PRESSOES p_saida E p_from
     def Set_Mass_Equations(self):
-
         nodes = self.node.index
-        #nodes = self.node_variable
-
         self.equations = pd.DataFrame({"node": nodes}).set_index("node")
 
         # CRIAR COLUNAS COM OS NOMES DAS LIGAÇÕES E ATRIBUIR UM ARRAY DE ZEROS
@@ -233,12 +240,38 @@ class Net():
             self.equations[_todas_ligacoes_[link_index]][_find_[_todas_ligacoes_[link_index]].values[1]] = - self.link[_ligacao_].a
 
     def Identify_Device_Type(self):
-        self.pipes = pd.read_csv(pathlib.PurePath(str(win_path), 'data', 'd_parameters.inp'), sep='|', index_col='idx')
-        self.connecs_t = pd.read_csv(pathlib.PurePath(str(win_path), 'data', 'ct_parameters.inp'), sep='|', index_col='idx')
+        # pd.read_csv(fnode, sep='|', index_col='idx')
+
+        self.pipes =  pd.read_csv(self.ALL_pipes, sep='|', index_col='idx')
+        self.pipes_corrugated = pd.read_csv(self.ALL_pipes_corrugated, sep='|', index_col='idx')
+        self.connecs_t = pd.read_csv(self.ALL_tees, sep='|', index_col='idx')
+        self.dfs = pd.read_csv(self.ALL_diffusers, sep='|', index_col='idx')
+        self.reductions = pd.read_csv(self.ALL_reductions, sep='|', index_col='idx')
+        self.ball_valves = pd.read_csv(self.ALL_ballvalves, sep='|', index_col='idx')
+        self.cotovelos_abrupto = pd.read_csv(self.ALL_cotovelosabruptos, sep='|', index_col='idx')
+        self.placas_orificio = pd.read_csv(self.ALL_placasorificios, sep='|', index_col='idx')
+
+        # antigos
+        #self.pipes = pd.read_csv(pathlib.PurePath(str(win_path), 'data', 'd_parameters.inp'), sep='|', index_col='idx')
+        #self.connecs_t = pd.read_csv(pathlib.PurePath(str(win_path), 'data', 'ct_parameters.inp'), sep='|', index_col='idx')
+        #self.dfs = pd.read_csv(pathlib.PurePath(str(win_path), 'data', 'd_parameters.inp'), sep='|', index_col='idx')
 
         for index in range(len(self.connect.index.values)):
             device = self.connect.index.values[index]
             type_device = re.split("\d", device)[0]
+
+            # (self, m, A_r, A_i, A_o, rho, zeta, l, l_c, h)
+            # DEVICE == TUBO CORRUGADO
+            if type_device == 'dc':
+                self.link[self.connect.index.values[index]] = Tubo_Corrugado(self.link[device].m,
+                                                                   self.link[device].A_r,
+                                                                   self.link[device].A_i,
+                                                                   self.link[device].A_o,
+                                                                   self.link[device].rho,
+                                                                   self.link[device].zeta,
+                                                                   self.pipes_corrugated.loc[self.connect.index.values[index]].values[0],
+                                                                   self.pipes_corrugated.loc[self.connect.index.values[index]].values[2],
+                                                                   self.pipes_corrugated.loc[self.connect.index.values[index]].values[1])
 
             # DEVICE == TUBO
             if type_device == 'd':
@@ -249,10 +282,48 @@ class Net():
                                                                         self.link[device].rho,
                                                                         self.link[device].zeta,
                                                                         self.pipes.loc[self.connect.index.values[index]].values[0])
+
+            # DEVICE == COTOVELO ABRUPTO
+            if type_device == 'ca':
+                self.link[self.connect.index.values[index]] = Cotovelo_Abrupto(self.link[device].m,
+                                                                   self.link[device].A_r,
+                                                                   self.link[device].A_i,
+                                                                   self.link[device].A_o,
+                                                                   self.link[device].rho,
+                                                                   self.link[device].zeta,
+                                                                   self.cotovelos_abrupto.loc[
+                                                                       self.connect.index.values[index]].values[0])
+
+            # DEVICE == VALVULA ESFERA
+            if type_device == 've':
+                self.link[self.connect.index.values[index]] = Valvula_Esfera(self.link[device].m,
+                                                                   self.link[device].A_r,
+                                                                   self.link[device].A_i,
+                                                                   self.link[device].A_o,
+                                                                   self.link[device].rho,
+                                                                   self.link[device].zeta,
+                                                                   self.ball_valves.loc[
+                                                                       self.connect.index.values[index]].values[0],
+                                                                   self.ball_valves.loc[
+                                                                       self.connect.index.values[index]].values[1],
+                                                                   self.ball_valves.loc[
+                                                                       self.connect.index.values[index]].values[2]
+                                                                   )
+
+            # DEVICE == REDUCAO ABRUPTA
+            if type_device == 'rd':
+                self.link[self.connect.index.values[index]] = Reducao(self.link[device].m,
+                                                                   self.link[device].A_r,
+                                                                   self.link[device].A_i,
+                                                                   self.link[device].A_o,
+                                                                   self.link[device].rho,
+                                                                   self.link[device].zeta,
+                                                                   self.reductions.loc[
+                                                                       self.connect.index.values[index]].values[0])
+
             # DEVICE == CONEXÃO EM T
             if type_device == 'ct':
                 juncao = "Yes"
-                referencia_zeta_cs = "Yes"
 
                 simetrico = self.connecs_t.loc[device, "Simetric"]
 
@@ -269,7 +340,19 @@ class Net():
                                                                         self.link[device].A_o,
                                                                         self.link[device].rho,
                                                                         self.link[device].zeta,
-                                                                        juncao, self.connecs_t.loc[self.connect.index.values[index]].values[0], referencia_zeta_cs, simetrico, straight)
+                                                                        juncao, self.connecs_t.loc[self.connect.index.values[index]].values[0], simetrico, straight)
+
+            a = 2
+            # DEVICE == PLACA DE ORIFICIO
+            if type_device == 'po':
+                self.link[self.connect.index.values[index]] = PlacaOrificio(self.link[device].m,
+                                                                        self.link[device].A_r,
+                                                                        self.link[device].A_i,
+                                                                        self.link[device].A_o,
+                                                                        self.link[device].rho,
+                                                                        self.link[device].zeta,
+                                                                        self.placas_orificio.loc[self.connect.index.values[index]].values[0])
+
             # DEVICE == DIFUSOR
             if type_device == 'df':
                 angulo = float(input(f"[DIFUSOR] Digite o Valor do Ângulo do Difusor {device} [º]"))
@@ -285,7 +368,6 @@ class Net():
 
     def Set_M_Line_Equations(self):
         nodes = self.node.index
-
         self.m_line = self.equations[:]
         for node_index in range(len(self.node.index)):
             _node_ = self.node.index[node_index]
@@ -305,54 +387,44 @@ class Net():
                 self.dflink.loc[self.connect.loc[self.connect['from'] == no].index.values, "m_extra"] = (self.dflink.loc[self.connect.loc[self.connect['from'] == no].index.values, "m"].sum())
 
     def Refresh_Px(self):
-        #K = self.dflink.loc["d0"].m / self.link["d0"].a
-
         for x in range(len(self.mass_boundary)):
             ligacao = self.mass_boundary[x]
             node_right = self.connect.loc[ligacao]["to"]
             node_left = self.connect.loc[ligacao]["from"]
 
-
-            # NÓ A ESQUERDA É FIXADO
+            # NÓ A ESQUERDA É FIXADO -  ENTRADA
             if self.connect.loc[ligacao]["from"] in self.node_boundary:
-
                 K = self.link[ligacao].m  / self.link[ligacao].a
                 p1 = self.node.loc[node_right].values[0]
-
                 self.px = K + p1
                 self.node.loc[node_left, "p"] = self.px
 
-            # NÓ A DIREITA É FIXADO
+            # NÓ A DIREITA É FIXADO - SAIDA
             if self.connect.loc[ligacao]["to"] in self.node_boundary:
-
                 K = self.link[ligacao].m / self.link[ligacao].a
                 p1 = self.node.loc[node_left].values[0]
-
-                #m4 = a4p6 - a4 px
-                #a4px = a4p6 - m4
-                #px = p6 - m4/a4
-
                 self.px =  p1 - K
                 self.node.loc[node_right, "p"] = self.px
 
-    def Set_Guess_Values(self):
-        self.dflink['m'] = 1
+    # FIXAR COMO NÓ DE CONTORNO PARA PRESSÃO A JUSANTE/ A MONTANTE PARA CONDIÇÕES DE CONTORNO DE VAZÃO MÁSSICA
+    def MassBoundary_Analyser(self):
+        Possible_Nodes_Boundary = list(set(self.connect['from'].values).symmetric_difference(set(self.connect['to'].values)))
+        for x in range(len(Possible_Nodes_Boundary)):
+            if len(self.connect.loc[self.mass_boundary].loc[self.connect['from'] == Possible_Nodes_Boundary[x]]) > 0 or len(self.connect.loc[self.mass_boundary].loc[self.connect['to'] == Possible_Nodes_Boundary[x]]) > 0:
+                Real_Node_Boundary = Possible_Nodes_Boundary[x]
+                self.node.loc[Real_Node_Boundary, "Condicao_Contorno"] = True
 
-
-    def Start_Iteration(self, alpha=0.2, iterations=1000, tol=1e-3):
-        # iterações recomendadas: 500~600
+    def Start_Iteration(self, alpha=0.2, iterations=1000, tol=1e-16):
         self.alpha_p = alpha
         self.alpha_m = alpha
 
         self.plot_pressure = []
         self.plot_mass = []
-
         err = 0
+
 
         for x in range(iterations):
             self.Refresh_Px()
-
-            #print(f'{round((x+1)/iterations * 100,2)} %')
 
             # GERAR DATAFRAME COM OS TERMOS (a_n * p_n) - (a_n-1 * p_n-1)
             self.Set_M_Line_Equations()
@@ -363,10 +435,7 @@ class Net():
             pressure_dot = self.node.loc[self.node_variable, "p"].to_numpy().reshape(-1)
             delta_p = pressure_line - pressure_dot
 
-
-
             err = np.sqrt(sum([delta**2 for delta in delta_p])/len(delta_p))
-
 
             self.node.loc[self.node_variable, "p"] = (pressure_dot + self.alpha_p * delta_p).reshape((self.shape, 1))
 
@@ -375,7 +444,6 @@ class Net():
             self.mass_line = {ligacoes[index]: self.m_line.cumsum().values[-1][index] for index in range(len(ligacoes))}
             self.mass_dot = {ligacoes[index]: self.link[ligacoes[index]].m for index in range(len(ligacoes))}
             self.delta_m = {ligacoes[index]: self.mass_line[ligacoes[index]] - self.mass_dot[ligacoes[index]] for index in range(len(ligacoes))}
-
 
             # ATUALIZAR VAZÕES MASSICAS NAS LIGAÇÕES E NO DATAFRAME DFLINK
             for link_index in range(len(self.connect.index.values)):
@@ -419,8 +487,18 @@ class Net():
             self.plot_pressure.append(list(self.node.loc[:,"p"].values.reshape(-1)))
             self.plot_mass.append([self.link[self.connect.index.values[index]].m for index in range(len(self.connect.index.values))])
 
+            #if iterations <= 100:
+               # plt.plot(self.plot_mass)
+               # plt.show()
+               # plt.pause(0.03)
+
             if err < tol:
+                print(f"[FINISHED BY TOLERANCE]-ITERATIONS [{x}/{iterations}]")
                 break
+
+            if x == iterations:
+                print(f"[FINISHED BY ITERARATIONS]-ITERATIONS [{x}/{iterations}]")
+
 
 
 
@@ -430,12 +508,10 @@ class Net():
         #self.pressure_df.columns = [f"p_{self.node.index.values[i]}" for i in range(len(self.node.index.values))]
         #self.mass_df.columns = self.connect.index.values
 
-
-
 class Tubo(Link):
     def __init__(self, m, A_r, A_i, A_o, rho, zeta, l):
         Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
-        self.mu = 1.12e-3
+        self.mu =  1.849e-5
         self.l = l
         self.D = np.sqrt((4 * self.A_r) / np.pi)
         self.U = self.m / (self.A_r * self.rho)
@@ -463,10 +539,141 @@ class Tubo(Link):
         lambdaValue = float(self.lambda_(self.Re))
         self.zeta = lambdaValue * (self.l / self.D)
 
+class PlacaOrificio(Link):
+    def __init__(self, m, A_r, A_i, A_o, rho, zeta, C):
+        Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
+        self.mu =  1.849e-5
+        self.C = C
+
+        self.D_i = np.sqrt((4 * self.A_i) / np.pi)
+        self.D_o = np.sqrt((4 * self.A_o) / np.pi)
+        self.beta = self.D_o / self.D_i
+
+        self.U = self.m / (self.A_i * self.rho)
+        self.nu = self.mu / self.rho
+
+        self.Set_Zeta()
+        self.Set_a()
+
+
+    def Set_Zeta(self):
+        self.U = self.m / (self.A_i * self.rho)
+        self.Re = round(self.U * self.D_i / self.nu)
+        self.zeta = (np.sqrt(1- (self.beta**4) * (1 - self.C**2))/(self.C * self.beta ** 2) - 1) ** 2
+
+class Cotovelo_Abrupto(Link):
+    def __init__(self, m, A_r, A_i, A_o, rho, zeta, delta):
+        Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
+        self.mu =  1.849e-5
+        self.D = np.sqrt((4 * self.A_r) / np.pi)
+        self.U = self.m / (self.A_r * self.rho)
+        self.nu = self.mu / self.rho
+        self.delta = delta
+        self.delta_rad = self.delta * np.pi/180
+
+        self.Set_Zeta()
+        self.Set_a()
+
+    def Set_Zeta(self):
+        self.A = 0.95 + 33.5/self.delta
+        self.zeta_loc = 0.95*(np.sin(self.delta_rad/2)**2) + 2.05*(np.sin(self.delta_rad/2)**4)
+        self.zeta = self.A * self.zeta_loc
+
+class Valvula_Esfera(Link):
+    def __init__(self, m, A_r, A_i, A_o, rho, zeta, D_1, D_2, theta):
+        Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
+        self.mu =  1.849e-5
+        self.D_1 = D_1
+        self.D_2 = D_2
+        self.theta = theta
+        self.beta = self.D_1/self.D_2
+        self.U = self.m / (self.A_r * self.rho)
+        self.nu = self.mu / self.rho
+
+        self.df = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'ball_valve_friction_factor.xlsx'),engine='openpyxl').set_index('D')
+        self.interp = interp1d(self.df.index, self.df['zeta_fr'].values)
+
+        self.Set_Zeta()
+        self.Set_a()
+
+    def Set_Zeta(self):
+        self.f_t = self.interp(self.D_2)
+        if self.beta == 1 and self.theta == 0:
+            self.K = 3 * self.f_t
+            #self.zeta = self.K
+            self.zeta = self.K/(self.rho*9.81)
+
+class Tubo_Corrugado(Link):
+    def __init__(self, m, A_r, A_i, A_o, rho, zeta, l, l_c, h):
+        Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
+        self.mu =1.849e-5
+        self.l = l
+        self.l_c = l_c
+        self.h = h
+        self.D = np.sqrt((4 * self.A_r) / np.pi)
+        self.U = self.m / (self.A_r * self.rho)
+        self.nu = self.mu / self.rho
+
+
+        self.df = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'corrugated_pipe.xlsx'), engine='openpyxl').set_index('Re')
+        #print(self.df)
+
+        self.Set_Zeta()
+        self.Set_a()
+
+    def lambda_(self, Re):
+        interp = interp2d(self.df.index, self.df.columns, np.array(self.df).T)
+        return float(interp(Re, self.h/self.l_c))
+
+
+    def Set_Zeta(self):
+        self.U = self.m / (self.A_r * self.rho)
+        self.Re = round(self.U * self.D / self.nu)
+        lambdaValue = float(self.lambda_(self.Re))
+        self.zeta = lambdaValue * (self.l / self.D)
+
+class Reducao(Link):
+    def __init__(self, m, A_r, A_i, A_o, rho, zeta, l):
+        Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
+        self.mu = 1.849e-5
+        self.l_0 = l
+        self.D_0 = np.sqrt((4 * self.A_o) / np.pi)  # Area ref - F0 (saida)
+        self.D_1 = np.sqrt((4 * self.A_i) / np.pi)  # Area ref - F1 (entrada)
+
+        self.F_0 = self.A_r
+        self.F_1 = self.A_i
+
+        self.U = self.m / (self.A_r * self.rho)
+        self.nu = self.mu / self.rho
+
+        self.df = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'tubo_chartB.xlsx'),engine='openpyxl').set_index('Reynolds')
+
+        self.Set_Zeta()
+        self.Set_a()
+
+    def lambda_(self, Re):
+        interp = interp1d(self.df.index, self.df['lambda'].values)
+        if Re <= 2000:
+            return 64 / Re
+        if (Re > 2000) and (Re <= 4000):
+            return float(interp(Re))
+        if (Re > 4000) and (Re < 100000):
+            return 0.3164 / (Re ** 0.25)
+        if Re >= 100000:
+            return 1 / ((1.8 * np.log10(Re) - 1.64) ** 2)
+
+    def Set_Zeta(self):
+        self.U = self.m / (self.A_r * self.rho)
+        self.Re = round(self.U * self.D_0 / self.nu)
+        lambdaValue = float(self.lambda_(self.Re))
+        self.zeta_fr = lambdaValue * (self.l_0 / self.D_0)
+
+        self.zeta = 0.5*(1 - self.F_0/self.F_1)**(3/4) + self.zeta_fr
+
 class Difusor(Link):
     def __init__(self, m, A_r, A_i, A_o, rho, zeta, angle, l, UniformVelocityProfile=True):
         Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
-        self.mu = 1.12e-3
+        self.mu = 1.849e-5
         self.UniformVelocityProfile = UniformVelocityProfile
         self.angle = angle
         self.l = l
@@ -534,18 +741,19 @@ class Difusor(Link):
 
     def Set_Zeta(self):
         self.zeta_d = self.Zetad(alpha=self.angle, nair=self.Nair, Re=self.Re)
+
         if self.UniformVelocityProfile == True:
             self.zeta = self.zeta_d
+
         else:
             self.k_d = self.Kd(alpha=self.angle, nair=self.Nair, Re=self.Re, l_0=self.l, D_0=self.D)
             self.zeta = self.zeta_d * self.k_d
 
 class Conexao_T(Link):
-    def __init__(self, m, m_extra, A_r, A_i, A_o, rho, zeta, Merging, Partition, Zeta_cs, Simetric, Straight):
+    def __init__(self, m, m_extra, A_r, A_i, A_o, rho, zeta, Merging, Partition, Simetric, Straight):
         Link.__init__(self, m, A_r, A_i, A_o, rho, zeta)
-        self.mu = 1.12e-3
+        self.mu = 1.849e-5
         self.Merging = Merging
-        self.Zeta_cs = Zeta_cs
 
         self.Simetric = Simetric
         self.Straight = Straight
@@ -562,6 +770,7 @@ class Conexao_T(Link):
         if Partition == False:
             self.partition = "No"
 
+        # PARAMETROS CONEXÃO T - SIMÉTRICA
         self.df_graphA_1 = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'conexao_t_zetaLinha1_cs.xlsx'),skiprows=2, engine='openpyxl').set_index('Qs/Qc')
         self.interp_graphA_1 = interp2d(self.df_graphA_1.index, self.df_graphA_1.columns, np.array(self.df_graphA_1).T)
 
@@ -571,9 +780,12 @@ class Conexao_T(Link):
         self.df_K1 = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'conexao_t_df_k1.xlsx'),skiprows=1, engine='openpyxl').set_index('Qs/Qc')
         self.interp_k1 = interp1d(self.df_K1.index, self.df_K1[90])
 
-        self.FatorZetaLinha = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'conexao_t_FatorZetaLinha.xlsx'), engine='openpyxl').set_index('ws/wc')
-        self.interp_FZL = interp1d(self.FatorZetaLinha.index, self.FatorZetaLinha[1])
+        # PARAMETROS CONEXÃO T - NÃO SIMÉTRICA
+        self.ZetaLinha_cst = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'conexao_t_DivisaoNaoSimetrica-TrechoReto.xlsx'), engine='openpyxl').set_index('Qs/Qc')
+        self.interp_ZetaLinha_cst = interp1d(self.ZetaLinha_cst.index, self.ZetaLinha_cst["Fs/Fc"])
 
+        self.ZetaLinha_cs = pd.read_excel(pathlib.PurePath(str(win_path), 'loss_in_devices', 'conexao_t_DivisaoNaoSimetrica-TrechoLateral.xlsx'), engine='openpyxl').set_index('Qs/Qc')
+        self.interp_ZetaLinha_cs = interp2d(self.ZetaLinha_cs.index, self.ZetaLinha_cs.columns, np.array(self.ZetaLinha_cs).T)
 
         self.A_s = self.A_i
         self.A_c = self.A_r
@@ -605,13 +817,11 @@ class Conexao_T(Link):
         if Fs / Fc > 0.35 and Qs / Qc > 0.4:
             return 0.55
 
-    def ConvertZeta_cs(self, Fs, Fc, Qs, Qc, Zeta_cs):
-        return Zeta_cs / (((Qs * Fc) / (Qc * Fs)) ** 2)
-
     # FUNÇÃO DE INTERPOLAÇÃO PARA - JUNÇÃO COM PARTIÇÃO
     def Verificador(self, Fs, Fc):
         if Fs / Fc == 1:
-            Merging_func1 = float(self.interp_graphA_2(self.Qs / self.Qc))
+           # Merging_func1 = float(self.interp_graphA_2(self.Qs / self.Qc))
+            Merging_func1 = 1
             return Merging_func1
 
         else:
@@ -631,45 +841,64 @@ class Conexao_T(Link):
         #############################################################################
         # CALCULO DOS PARAMETROS PARA CONEXÃO EM T - NÃO SIMÉTRICA
         #############################################################################
-        # JUNÇÃO NÃO SIMÉTRICA - CALCULO DE ZETA NA PASSAGEM ESTREITA
+        # JUNÇÃO NÃO SIMÉTRICA - CALCULO DE ZETA NO TRECHO RETO
         if self.Merging and self.Simetric == False and self.Straight == True:
             self.Merging_func4 = 1.55*self.R_Q - self.R_Q**2
 
         # JUNÇÃO NÃO SIMÉTRICA - CALCULO DE ZETA NO TRECHO LATERAL
         if self.Merging and self.Simetric == False and self.Straight == False:
             self.A = self.A_parameter(self.A_s, self.A_c, self.Qs, self.Qc)
-            #self.Merging_func3 = self.A * (1 + (self.R_Q * self.R_A) ** 2 - 2 * (1 - self.R_A) ** 2)
-            self.Merging_func3 = (1 + (self.R_Q*self.R_A)**2 - 2 * (1-self.R_Q)**2)
+            self.Merging_func3 = self.A * (1 + (self.R_Q * self.R_A) ** 2 - 2 * (1 - self.R_A) ** 2)
+            #self.Merging_func3 = (1 + (self.R_Q * self.R_A) ** 2 - 2 * (1 - self.R_A) ** 2)
 
-        # DIVISÃO NÃO SIMÉTRICA - CALCULO DE ZETA
-        if not self.Merging and self.Simetric == False:
+        # DIVISÃO NÃO SIMÉTRICA - CALCULO DE ZETA NO TRECHO RETO
+        if not self.Merging and self.Simetric == False  and self.Straight == True:
+            Zeta_cst = self.interp_ZetaLinha_cst(self.Qs/self.Qc)
+            self.Dividing_func2 = Zeta_cst / (((1 - self.Qs / self.Qc) ** 2) * ((self.A_c / self.A_s) ** 2))
 
-            # CALCULO PARA hs/hc <= 2/3
-            self.Dividing_func3 = 1 + (self.U_s/self.U_c)**2
 
-            # CALCULO PARA hs/hc = 1
-            self.Fator_Zeta_Linha = self.interp_FZL(self.U_s/self.U_c)
-            self.Dividing_func2 = self.Fator_Zeta_Linha * (1 + 0.3*(self.U_s/self.U_c)**2)
+        # DIVISÃO NÃO SIMÉTRICA - CALCULO DE ZETA NO TRECHO LATERAL
+        if not self.Merging and self.Simetric == False and self.Straight == False:
+            # PROBLEMA ESTÁ AQUI
+
+            Zeta_cs = self.interp_ZetaLinha_cs(self.Qs/self.Qc, self.A_s/self.A_c)
+            self.Dividing_func3 = Zeta_cs / (((self.Qs * self.A_c) / (self.Qc * self.A_s)) ** 2)
 
         #############################################################################
         # CALCULO DOS PARAMETROS PARA CONEXÃO EM T - SIMÉTRICA
         #############################################################################
         if self.Merging and self.Simetric == True:
-            self.A = self.A_parameter(self.A_s, self.A_c, self.Qs, self.Qc)    # usado para JUNÇÃO sem partição
-            #self.Merging_func2 = self.A * (1 + (self.R_A)**2 + 3*(self.R_A)**2 * ((self.R_Q)** 2 - self.R_Q)) # usado para JUNÇÃO sem partição
-            self.Merging_func2 = (1 + (self.R_A) ** 2 + 3 * (self.R_A) ** 2 * ((self.R_Q) ** 2 - self.R_Q))  # usado para JUNÇÃO sem partição
+            #self.A = self.A_parameter(self.A_s, self.A_c, self.Qs, self.Qc)
+            #self.Merging_func2 = self.A * (1 + (self.R_A)**2 + 3*(self.R_A)**2 * ((self.R_Q)** 2 - self.R_Q)) # resultado não converge considerando o parametro A
+            self.Merging_func2 = (1 + (self.R_A)**2 + 3 * (self.R_A)**2 * ((self.R_Q)**2 - self.R_Q))
 
-        if not self.Merging and self.Simetric == True :
+        if not self.Merging and self.Simetric == True:
             self.k_1 = self.k1_parameter(self.A_s, self.A_c, self.Qs, self.Qc)  # usado para DIVISÃO sem partição
             self.Dividing_func1 = 1 + self.k_1 * (self.U_s / self.U_c)**2
-            #self.Dividing_func1 = 1 + (self.U_s / self.U_c) ** 2  # usado para DIVISÃO sem partição
 
     def Set_Zeta(self):
-        if self.Merging:
+
+        # CONEXÃO T - NÃO SIMÉTRICA
+        if self.Merging and self.Simetric == False and self.Straight == True:
+            self.zeta = self.Merging_func4
+
+        if self.Merging and self.Simetric == False and self.Straight == False:
+            self.zeta = self.Merging_func3
+
+        if not self.Merging and self.Simetric == False and self.Straight == True:
+            self.zeta = self.Dividing_func2
+
+        if not self.Merging and self.Simetric == False and self.Straight == False:
+            self.zeta = self.Dividing_func3
+
+
+        # CONEXÃO T - SIMÉTRICA
+        if self.Merging and self.Simetric == True:
             WithPartition = self.Verificador(self.A_s, self.A_c)
             WithoutPartition = self.Merging_func2
             VerifierPartition = lambda Partition: WithPartition if str(self.Partition) == 'Yes' else WithoutPartition
             self.zeta = VerifierPartition(self.Partition)
 
-        if not self.Merging:
+        if not self.Merging and self.Simetric == True:
             self.zeta = self.Dividing_func1
+

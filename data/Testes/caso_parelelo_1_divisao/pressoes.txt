@@ -1,0 +1,50 @@
+net.link["d0"].Set_Dynamic()
+net.link["d1"].Set_Dynamic()
+net.link["d2"].Set_Dynamic()
+net.link["d3"].Set_Dynamic()
+net.link["d4"].Set_Dynamic()
+net.link["ct1"].Set_Dynamic()
+net.link["ct2"].Set_Dynamic()
+
+p_0 = 0
+p_1 = p_0 - net.link["d0"].DP
+p_2 = p_1 - net.link["d1"].DP
+p_3 = p_2 - net.link["d2"].DP
+p_4 = p_3 + 1e3*1.2903**2/2 - 1e3*0.6452**2/2 - net.link["ct1"].DP
+p_5 = p_4 - net.link["d3"].DP
+p_6 = p_3 + 1e3*1.2903**2/2 - 1e3*0.6452**2/2 - net.link["ct2"].DP
+p_7 = p_6 - net.link["d4"].DP
+
+[
+p_4 = p_3 + net.link["ct1"].m_extra**2/(2*1e3*net.link["ct1"].A_i**2) - net.link["ct1"].m**2/(2*1e3*net.link["ct1"].A_o**2) - net.link["ct1"].DP
+p_5 = p_4 - net.link["d3"].DP
+p_6 = p_3 + net.link["ct2"].m_extra**2/(2*1e3*net.link["ct1"].A_i**2) - net.link["ct1"].m**2/(2*1e3*net.link["ct1"].A_o**2) - net.link["ct2"].DP
+p_7 = p_6 - net.link["d4"].DP
+]
+
+
+- TESTAR:
+DP_TERMO = 1123.8293444328824
+VELOCIDADE_MAX_TERMO = 832.437045
+VELOCIDADE_MIN_TERMO = 208.14151999999999
+P_3 = -1960.5544285501592
+
+
+p_1
+Out[158]: -653.5181428500531
+p_2
+Out[159]: -1307.0362857001062
+p_3
+Out[160]: -1960.5544285501592
+p_4
+Out[161]: -2376.8416298769016
+p_5
+Out[162]: -2564.798532053519
+p_6
+Out[163]: -2376.8416298769016
+p_7
+Out[164]: -2564.798532053519
+
+
+
+
